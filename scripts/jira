@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CREDS="${HOME}/.config/jira/credentials"
+if [[ ! -f "$CREDS" ]]; then
+  echo "Error: missing credentials file: $CREDS"
+  echo ""
+  echo "Create it with:"
+  echo "  mkdir -p ~/.config/jira"
+  echo "  cat > ~/.config/jira/credentials << 'EOF'"
+  echo "  JIRA_URL=https://your-instance.atlassian.net"
+  echo "  JIRA_USER=your@email.com"
+  echo "  JIRA_TOKEN=ATATT3x..."
+  echo "  EOF"
+  echo "  chmod 600 ~/.config/jira/credentials"
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "$CREDS"
+
+BASE_URL="${JIRA_URL}/rest/api/3"
+AUTH="${JIRA_USER}:${JIRA_TOKEN}"
+
+JSON=false
+if [[ "${1:-}" == "--json" ]]; then
+  JSON=true
+  shift
+fi
+
+cmd="${1:-help}"
+shift || true
+
+_fmt_issue() {
+  jq -r '"[\(.fields.status.name)] \(.key): \(.fields.summary)\nAssignee: \(.fields.assignee.displayName // "Unassigned")\nPriority:  \(.fields.priority.name)\nURL:       '"${JIRA_URL}"'/browse/\(.key)"'
+}
+
+_fmt_list() {
+  jq -r '.issues[] | "[" + .fields.status.name + "] " + .key + ": " + .fields.summary'
+}
+
+_curl() {
+  local response http_code
+  response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" "$@")
+  http_code=$(echo "$response" | grep -o '__HTTP_CODE__:[0-9]*' | cut -d: -f2)
+  body=$(echo "$response" | sed '$d')
+  if [[ "$http_code" == "401" ]]; then
+    echo "Error: unauthorized (401) - token expired? Update ~/.config/jira/credentials" >&2
+    exit 1
+  elif [[ "$http_code" == "404" ]]; then
+    echo "Error: not found (404) - check issue key, project access, or token validity (JIRA returns 404 for auth errors too)" >&2
+    exit 1
+  elif [[ "$http_code" -ge 400 ]]; then
+    echo "Error: HTTP $http_code" >&2
+    echo "$body" | jq -r '.errorMessages[]?, (.errors // {} | to_entries[] | .key + ": " + .value)' 2>/dev/null >&2
+    exit 1
+  fi
+  echo "$body"
+}
+
+case "$cmd" in
+  get)
+    issue="${1:?Usage: jira get <ISSUE-KEY>}"
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue")
+    if $JSON; then echo "$r" | jq .; else echo "$r" | _fmt_issue; fi
+    ;;
+
+  comment)
+    issue="${1:?Usage: jira comment <ISSUE-KEY> <text>}"
+    text="${2:?Missing comment text}"
+    body=$(jq -n --arg t "$text" \
+      '{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":$t}]}]}}')
+    _curl -u "$AUTH" \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json" \
+      -X POST "$BASE_URL/issue/$issue/comment" \
+      -d "$body" | jq -r '"Comment added (id: " + .id + ") to '"$issue"'"'
+    ;;
+
+  search|jql)
+    jql_query="${1:?Usage: jira search <JQL>}"
+    max="${2:-25}"
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" -G "$BASE_URL/search/jql" \
+      --data-urlencode "jql=$jql_query" \
+      --data-urlencode "maxResults=$max" \
+      --data-urlencode "fields=summary,status,assignee,priority")
+    if $JSON; then echo "$r" | jq .; else echo "$r" | _fmt_list; fi
+    ;;
+
+  transition)
+    issue="${1:?Usage: jira transition <ISSUE-KEY> <status-name>}"
+    target="${2:-}"
+    transitions=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue/transitions")
+    if [[ -z "$target" ]]; then
+      echo "Available transitions for $issue:"
+      echo "$transitions" | jq -r '.transitions[] | "  " + .name'
+      exit 0
+    fi
+    tid=$(echo "$transitions" | jq -r --arg n "$target" '.transitions[] | select(.name == $n) | .id')
+    if [[ -z "$tid" ]]; then
+      echo "Error: transition '$target' not found for $issue" >&2
+      echo "Available transitions:"
+      echo "$transitions" | jq -r '.transitions[] | "  " + .name' >&2
+      exit 1
+    fi
+    _curl -u "$AUTH" \
+      -H "Content-Type: application/json" \
+      -X POST "$BASE_URL/issue/$issue/transitions" \
+      -d "{\"transition\":{\"id\":\"$tid\"}}" > /dev/null
+    echo "Transitioned $issue → $target"
+    ;;
+
+  help|--help|-h)
+    cat << 'EOF'
+Usage: jira [--json] <command> [args...]
+
+Commands:
+  get <ISSUE-KEY>                   Get issue details
+  comment <ISSUE-KEY> <text>        Add comment to issue
+  search <JQL> [maxResults]         Search issues with JQL (default: 25)
+  jql <JQL> [maxResults]            Alias for search
+  transition <ISSUE-KEY> [status]   Transition issue status (no status = list available)
+
+Flags:
+  --json    Output raw JSON instead of formatted text
+
+Examples:
+  jira get KNW-29279
+  jira comment KNW-29279 "Fixed in latest build"
+  jira search "project=KNW AND status=Open AND assignee=currentUser()"
+  jira transition KNW-29279 "In Progress"
+  jira transition KNW-29279        # lists available transitions
+  jira --json get KNW-29279
+
+Credentials: ~/.config/jira/credentials
+EOF
+    ;;
+
+  *)
+    echo "Unknown command: $cmd" >&2
+    echo "Run 'jira help' for usage" >&2
+    exit 1
+    ;;
+esac
