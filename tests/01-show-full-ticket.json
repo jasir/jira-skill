@@ -1,0 +1,20 @@
+{
+  "name": "show-full-ticket",
+  "description": "User asks for everything about a ticket; agent should use `jira show` (single API call) instead of get+describe+comments.",
+  "prompt": "Popiš mi všechno, co víš o ticketu KNW-31435 — status, summary, description i komentáře.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira show KNW-31435`",
+    "makes exactly one call to the jira wrapper",
+    "presents header, description as plain text, and comments section",
+    "does NOT dump raw JSON to the user"
+  ],
+  "anti_patterns": [
+    "calls `jira get`, then `jira describe`, then `jira comments` separately",
+    "uses raw curl to JIRA API",
+    "uses `jira --json` and parses ADF manually with jq",
+    "outputs ADF tree to the user"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

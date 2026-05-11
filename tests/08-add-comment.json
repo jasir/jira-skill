@@ -1,0 +1,18 @@
+{
+  "name": "add-comment",
+  "description": "User wants to add a comment — agent should use `jira comment`, not construct ADF JSON by hand.",
+  "prompt": "Připrav příkaz, kterým bys přidal komentář 'Opraveno v buildu 1.2.3 — viz release notes' k ticketu KNW-31435. Spouštět nemusíš.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "proposes `jira comment KNW-31435 \"Opraveno v buildu 1.2.3 — viz release notes\"`",
+    "does not hand-construct an ADF JSON body",
+    "does not use raw curl with -X POST"
+  ],
+  "anti_patterns": [
+    "constructs `{\"body\": {\"type\":\"doc\", ...}}` JSON manually",
+    "uses raw curl -X POST",
+    "uses `jira --json` (which is for output, not input)"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

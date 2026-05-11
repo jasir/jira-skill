@@ -1,0 +1,18 @@
+{
+  "name": "transition",
+  "description": "User asks to transition status without specifying exact name — agent should list available transitions first, not guess.",
+  "prompt": "Posuň ticket KNW-31435 do dalšího stavu po Code review. Neprováděj transition skutečně — jen mi řekni, jaký příkaz bys spustil a proč.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "calls `jira transition KNW-31435` (no status arg) to list valid options first",
+    "proposes the final command using the exact transition name returned by JIRA",
+    "explains that transition names are case-sensitive and instance-specific"
+  ],
+  "anti_patterns": [
+    "guesses a transition name without listing (e.g. 'Done', 'Approved') and proposes it as the command",
+    "uses raw curl",
+    "actually executes the transition despite the dry-run instruction"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

@@ -30,12 +30,50 @@ fi
 cmd="${1:-help}"
 shift || true
 
+# Recursive ADF (Atlassian Document Format) → plain text.
+# Handles paragraphs, lists, headings, blockquotes, code blocks, hard breaks.
+_ADF_JQ='
+def t:
+  if type == "object" then
+    if .type == "text" then (.text // "")
+    elif .type == "hardBreak" then "\n"
+    elif .type == "listItem" then "- " + ([(.content // [])[] | t] | join("")) + "\n"
+    elif .type == "paragraph" then ([(.content // [])[] | t] | join("")) + "\n"
+    elif .type == "heading" then "\n" + ([(.content // [])[] | t] | join("")) + "\n"
+    elif .type == "blockquote" then "> " + ([(.content // [])[] | t] | join("")) + "\n"
+    elif .type == "codeBlock" then "\n```\n" + ([(.content // [])[] | t] | join("")) + "\n```\n"
+    else ([(.content // [])[] | t] | join(""))
+    end
+  else "" end;
+if . == null then "" else t end
+'
+
+_adf2text() { jq -r "$_ADF_JQ"; }
+
 _fmt_issue() {
   jq -r '"[\(.fields.status.name)] \(.key): \(.fields.summary)\nAssignee: \(.fields.assignee.displayName // "Unassigned")\nPriority:  \(.fields.priority.name)\nURL:       '"${JIRA_URL}"'/browse/\(.key)"'
 }
 
 _fmt_list() {
   jq -r '.issues[] | "[" + .fields.status.name + "] " + .key + ": " + .fields.summary'
+}
+
+_fmt_comments() {
+  local data="$1"
+  local cnt
+  cnt=$(echo "$data" | jq '.comments | length')
+  if [[ "$cnt" == "0" ]]; then
+    echo "(no comments)"
+    return
+  fi
+  echo "$data" | jq -c '.comments[]' | while IFS= read -r c; do
+    local author created
+    author=$(echo "$c" | jq -r '.author.displayName')
+    created=$(echo "$c" | jq -r '.created | .[0:16] | sub("T"; " ")')
+    echo "── $author — $created"
+    echo "$c" | jq '.body' | _adf2text
+    echo ""
+  done
 }
 
 _curl() {
@@ -62,6 +100,34 @@ case "$cmd" in
     issue="${1:?Usage: jira get <ISSUE-KEY>}"
     r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue")
     if $JSON; then echo "$r" | jq .; else echo "$r" | _fmt_issue; fi
+    ;;
+
+  describe)
+    issue="${1:?Usage: jira describe <ISSUE-KEY>}"
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue?fields=description")
+    if $JSON; then echo "$r" | jq '.fields.description'
+    else echo "$r" | jq '.fields.description' | _adf2text; fi
+    ;;
+
+  comments)
+    issue="${1:?Usage: jira comments <ISSUE-KEY>}"
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue/comment")
+    if $JSON; then echo "$r" | jq .
+    else _fmt_comments "$r"; fi
+    ;;
+
+  show)
+    # One API call → header + description + comments, all formatted.
+    issue="${1:?Usage: jira show <ISSUE-KEY>}"
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" \
+      "$BASE_URL/issue/$issue?fields=summary,status,assignee,priority,description,comment")
+    if $JSON; then echo "$r" | jq .; exit 0; fi
+    echo "$r" | _fmt_issue
+    echo ""
+    echo "── Description ──"
+    echo "$r" | jq '.fields.description' | _adf2text
+    echo "── Comments ──"
+    _fmt_comments "$(echo "$r" | jq '{comments: .fields.comment.comments}')"
     ;;
 
   comment)
@@ -114,7 +180,10 @@ case "$cmd" in
 Usage: jira [--json] <command> [args...]
 
 Commands:
-  get <ISSUE-KEY>                   Get issue details
+  get <ISSUE-KEY>                   Issue header (status, summary, assignee, URL)
+  describe <ISSUE-KEY>              Description as plain text (ADF rendered)
+  comments <ISSUE-KEY>              All comments (author, date, text)
+  show <ISSUE-KEY>                  Header + description + comments (ONE API call)
   comment <ISSUE-KEY> <text>        Add comment to issue
   search <JQL> [maxResults]         Search issues with JQL (default: 25)
   jql <JQL> [maxResults]            Alias for search
@@ -124,12 +193,15 @@ Flags:
   --json    Output raw JSON instead of formatted text
 
 Examples:
-  jira get KNW-29279
-  jira comment KNW-29279 "Fixed in latest build"
-  jira search "project=KNW AND status=Open AND assignee=currentUser()"
-  jira transition KNW-29279 "In Progress"
-  jira transition KNW-29279        # lists available transitions
-  jira --json get KNW-29279
+  jira show PROJ-123                       # everything in one call (token-efficient)
+  jira get PROJ-123                        # just the header
+  jira describe PROJ-123                   # description only
+  jira comments PROJ-123                   # comments only
+  jira comment PROJ-123 "Fixed in build 1.2.3"
+  jira search "project=PROJ AND status=Open AND assignee=currentUser()"
+  jira transition PROJ-123 "In Progress"
+  jira transition PROJ-123                 # lists available transitions
+  jira --json get PROJ-123 | jq .fields.status
 
 Credentials: ~/.config/jira/credentials
 EOF

@@ -1,0 +1,14 @@
+{
+  "test": "05-custom-field",
+  "model": "haiku-4.5",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "uses `jira --json get KNW-31435` piped to `jq`",
+    "extracts both fields in a single bash invocation (one API call)",
+    "outputs only the requested values"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Clean single jq pipeline: `.fields | {reporter, labels}`."
+}

@@ -1,0 +1,17 @@
+{
+  "test": "06-search-mine",
+  "model": "sonnet-4.6",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "4/4 with caveat",
+  "passed": [
+    "uses `jira search` with a JQL string",
+    "JQL contains `assignee = currentUser()` (first attempt)",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "presents results as a list"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [
+    "borderline: 4 API calls instead of 1 — extra calls were 'verification' because empty result was suspect"
+  ],
+  "notes": "Primary criteria met cleanly, but agent didn't trust the empty result and made 3 extra verification queries. Suggests the skill should add explicit guidance: 'empty result from currentUser() is a valid answer — do not verify with raw curl or accountId'."
+}

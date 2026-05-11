@@ -1,0 +1,14 @@
+{
+  "test": "03-comments-only",
+  "model": "sonnet-4.6",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "uses `jira comments KNW-31435`",
+    "presents result in plain text",
+    "handles 0-comment case gracefully"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "More precise than opus — picked `jira comments` (exact tool) instead of `jira show` (broader)."
+}

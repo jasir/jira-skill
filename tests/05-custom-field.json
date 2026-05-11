@@ -1,0 +1,19 @@
+{
+  "name": "custom-field",
+  "description": "Field not in formatted output (reporter, labels, parent) → agent should use `jira --json get | jq` one-liner.",
+  "prompt": "Kdo je reporter ticketu KNW-31435 a jaké má labels?",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira --json get KNW-31435` piped to `jq`",
+    "extracts both fields in a single bash invocation (one API call)",
+    "outputs only the requested values (reporter name + labels)"
+  ],
+  "anti_patterns": [
+    "makes two separate `jira --json get` calls for the two fields",
+    "uses raw curl",
+    "dumps the full JSON response to the user",
+    "tries to use `jira get` and complains the data is missing"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

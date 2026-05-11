@@ -1,0 +1,14 @@
+{
+  "test": "03-comments-only",
+  "model": "haiku-4.5",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "uses `jira comments KNW-31435`",
+    "presents result in plain text",
+    "handles 0-comment case gracefully"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Most precise of all three models — picked `jira comments` (narrowest tool for the question)."
+}

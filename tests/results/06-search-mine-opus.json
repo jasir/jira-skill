@@ -1,0 +1,15 @@
+{
+  "test": "06-search-mine",
+  "model": "opus-4.7",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "4/4",
+  "passed": [
+    "uses `jira search` with a JQL string",
+    "JQL contains `assignee = currentUser()` (not a hard-coded email)",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "presents results as a list (key + summary per line)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Exact JQL: `project=KNW AND status='In Progress' AND assignee=currentUser()`. One API call. Empty result handled gracefully."
+}

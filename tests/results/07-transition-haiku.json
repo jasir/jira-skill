@@ -1,0 +1,14 @@
+{
+  "test": "07-transition",
+  "model": "haiku-4.5",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "calls `jira transition KNW-31435` (no status arg) to list valid options first",
+    "proposes the final command using the exact transition name returned by JIRA (`To Testing`)",
+    "honors dry-run"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Most explicit of all three — haiku verbalized 'name must be case-sensitive' as part of reasoning. 2 API calls (transitions list + get for context)."
+}

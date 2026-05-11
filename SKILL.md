@@ -1,6 +1,6 @@
 ---
 name: using-jira
-description: Use when querying JIRA issues, adding comments, searching with JQL, or transitioning issue status - wraps JIRA REST API v3 via curl script at ~/.local/bin/jira with formatted output; requires one-time credentials setup at ~/.config/jira/credentials
+description: Use when querying JIRA issues, reading descriptions or comments, adding comments, searching with JQL, or transitioning issue status - wraps JIRA REST API v3 via curl script at ~/.local/bin/jira with formatted output; requires one-time credentials setup at ~/.config/jira/credentials
 ---
 
 # Using JIRA
@@ -9,7 +9,7 @@ description: Use when querying JIRA issues, adding comments, searching with JQL,
 
 Direct JIRA API access via local bash script. No MCP dependency, no version issues, token-efficient.
 
-Script: `scripts/jira` → symlinked to `~/.local/bin/jira`
+Script: `scripts/jira` → symlinked to `~/.local/bin/jira`. Requires `bash`, `curl`, `jq`.
 
 ## One-Time Setup
 
@@ -34,33 +34,47 @@ ln -sf "$(pwd)/scripts/jira" ~/.local/bin/jira
 
 ## Quick Reference
 
-| Operation | Command |
-|-----------|---------|
-| Get issue | `jira get PROJ-123` |
-| Add comment | `jira comment PROJ-123 "text"` |
-| Search JQL | `jira search "project=PROJ AND status=Open"` |
-| Search alias | `jira jql "project=PROJ AND assignee=currentUser()"` |
-| List transitions | `jira transition PROJ-123` |
-| Apply transition | `jira transition PROJ-123 "In Progress"` |
-| Raw JSON | `jira --json get PROJ-123` |
+| Operation | Command | API calls |
+|-----------|---------|-----------|
+| Issue header | `jira get PROJ-123` | 1 |
+| Description (plain text) | `jira describe PROJ-123` | 1 |
+| Comments (formatted) | `jira comments PROJ-123` | 1 |
+| **Header + description + comments** | **`jira show PROJ-123`** | **1** |
+| Add comment | `jira comment PROJ-123 "text"` | 1 |
+| Search JQL | `jira search "project=PROJ AND status=Open"` | 1 |
+| List transitions | `jira transition PROJ-123` | 1 |
+| Apply transition | `jira transition PROJ-123 "In Progress"` | 2 |
+| Raw JSON (custom extraction) | `jira --json get PROJ-123 \| jq ...` | 1 |
+
+**Prefer `show` when you need everything** — one API call, fully rendered (description ADF → plain text, comments with author/date). Saves tokens and round-trips.
 
 ## Examples
 
 ```bash
-# Get issue details
+# Full ticket inspection in ONE call (recommended for "what is this ticket about?")
+jira show PROJ-123
+
+# Just the header (cheap status lookup)
 jira get PROJ-123
-# → [In Progress] PROJ-123: Implement feature X
-#   Assignee: Jane Doe
-#   Priority:  Medium
-#   URL:       https://your-instance.atlassian.net/browse/PROJ-123
 
 # Add multiline comment (use $'...' for special chars)
 jira comment PROJ-123 "Fixed in build 1.2.3 — see release notes"
 
-# Find open issues in project
-jira search "project=PROJ AND status='In Progress'"
+# Find your open issues
+jira search "project=PROJ AND status='In Progress' AND assignee=currentUser()"
 
-# List what transitions are available, then apply one
+# Custom field that isn't in formatted output → --json + jq
+jira --json get PROJ-123 | jq -r '.fields.reporter.displayName, .fields.labels[]'
+
+# Bulk extraction with one API call (when you need multiple custom fields)
+jira --json get PROJ-123 | jq '{
+  summary: .fields.summary,
+  reporter: .fields.reporter.displayName,
+  labels: .fields.labels,
+  parent: .fields.parent.key
+}'
+
+# List then apply a transition (status name must match exactly)
 jira transition PROJ-123
 jira transition PROJ-123 "To Done"
 ```
@@ -69,11 +83,13 @@ jira transition PROJ-123 "To Done"
 
 | Mistake | Fix |
 |---------|-----|
-| `Error: HTTP 410` on search | Atlassian removed `/rest/api/3/search` – script uses `/rest/api/3/search/jql` (already fixed) |
-| `Error: not found (404)` even though issue exists | Token expired or wrong – verify with `curl -u user:token <JIRA_URL>/rest/api/3/myself` |
+| Three calls (`get` + `describe` + `comments`) to investigate ticket | Use `jira show` — one call, same info |
+| Raw `curl` to `/rest/api/3/issue/{key}/comment` | Use `jira comments` (already calls that endpoint) |
+| Hand-parsing ADF description JSON | Use `jira describe` or `jira show` — wrapper renders ADF to text |
+| `Error: HTTP 410` on search | Atlassian removed `/rest/api/3/search` — script uses `/rest/api/3/search/jql` (already fixed) |
+| `Error: not found (404)` even though issue exists | Token expired – verify with `curl -u user:token <JIRA_URL>/rest/api/3/myself` |
 | Comment with apostrophes breaks | Use `$'text with \'quotes\''` or pass via variable |
-| Transition name wrong | Run `jira transition PROJ-123` (no status arg) to list available names |
-| 404 on auth failure | JIRA returns 404 (not 401) when token is invalid but issue exists – always verify token first |
+| Guessing transition name | Run `jira transition PROJ-123` (no arg) to list available names |
 
 ## Troubleshooting
 
@@ -81,9 +97,6 @@ jira transition PROJ-123 "To Done"
 # Test token validity
 source ~/.config/jira/credentials
 curl -sf -u "$JIRA_USER:$JIRA_TOKEN" "$JIRA_URL/rest/api/3/myself" | jq .displayName
-
-# Show available transitions (no guessing)
-jira transition PROJ-123
 
 # Raw response for debugging
 jira --json get PROJ-123 | jq .fields.status

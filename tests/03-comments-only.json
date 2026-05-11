@@ -1,0 +1,19 @@
+{
+  "name": "comments-only",
+  "description": "User asks about discussion on a ticket; agent should use `jira comments` (or `jira show`) — not raw curl, not jq on ADF.",
+  "prompt": "Jaké komentáře jsou pod ticketem KNW-31435 a kdo je psal?",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira comments KNW-31435` OR `jira show KNW-31435`",
+    "presents comments with author and date in plain text",
+    "handles 0-comment case gracefully (says ticket has no comments)"
+  ],
+  "anti_patterns": [
+    "uses raw curl on /rest/api/3/issue/.../comment endpoint",
+    "uses `jira --json` and parses ADF body manually",
+    "claims 'no way to read comments' or invents a missing feature",
+    "outputs raw JSON"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

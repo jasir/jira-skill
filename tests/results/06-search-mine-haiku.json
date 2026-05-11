@@ -1,0 +1,20 @@
+{
+  "test": "06-search-mine",
+  "model": "haiku-4.5",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "2/4 (FAIL)",
+  "passed": [
+    "uses `jira search` with a JQL string (first attempt only)",
+    "first JQL contained `assignee = currentUser()`"
+  ],
+  "failed": [
+    "did not present a stable answer — fell into verification loop",
+    "made 6 API calls instead of 1"
+  ],
+  "anti_patterns_triggered": [
+    "hardcoded accountId `63ac0ba4741248746bf67ba5` into later JQL attempts",
+    "used raw `curl` on `/rest/api/3/myself` endpoint",
+    "ran the same query in 5 variations trying to disprove the empty result"
+  ],
+  "notes": "Haiku does NOT trust empty result from `currentUser()` JQL. Falls back to: raw curl for /myself, hardcoded accountId, and multiple query variations. This is a real REFACTOR signal — skill needs explicit guidance: 'empty result is a valid answer; do NOT verify with raw curl or accountId fallback'."
+}

@@ -1,0 +1,19 @@
+{
+  "name": "description-only",
+  "description": "User asks just for the description text; agent should use `jira describe` (not show, not raw JSON).",
+  "prompt": "Co je obsahem description ticketu KNW-31435? Stačí mi text, nic víc.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira describe KNW-31435` OR `jira show KNW-31435`",
+    "outputs description as plain text (not ADF JSON)",
+    "does not include comments section in the answer"
+  ],
+  "anti_patterns": [
+    "uses `jira --json get` and parses ADF with jq manually",
+    "uses raw curl",
+    "outputs ADF JSON tree",
+    "uses `jira get` (which doesn't return description)"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

@@ -1,0 +1,15 @@
+{
+  "test": "01-show-full-ticket",
+  "model": "haiku-4.5",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "4/4",
+  "passed": [
+    "uses `jira show KNW-31435`",
+    "makes exactly one call to the jira wrapper",
+    "presents header, description as plain text, and comments section",
+    "does NOT dump raw JSON to the user"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Same behavior as opus/sonnet. Haiku reliably picks `jira show` for full-ticket queries."
+}

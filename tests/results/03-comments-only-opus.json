@@ -1,0 +1,14 @@
+{
+  "test": "03-comments-only",
+  "model": "opus-4.7",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "uses `jira show KNW-31435` (allowed alternative to `jira comments`)",
+    "presents result in plain text",
+    "handles 0-comment case gracefully ('žádné komentáře')"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Agent picked `jira show` instead of `jira comments`. Spec accepts both. Single API call. Importantly: no raw curl fallback, which was the baseline RED-phase failure mode."
+}

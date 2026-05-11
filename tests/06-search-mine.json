@@ -1,0 +1,20 @@
+{
+  "name": "search-mine",
+  "description": "User wants their own open tickets — agent must use JQL with `assignee = currentUser()`, not enumerate or filter manually.",
+  "prompt": "Najdi moje rozpracované tickety v projektu KNW (status In Progress).",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira search` (or `jira jql`) with a JQL string",
+    "JQL contains `assignee = currentUser()` (not a hard-coded email)",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "presents results as a list (key + summary per line)"
+  ],
+  "anti_patterns": [
+    "lists all KNW tickets and filters in shell",
+    "hardcodes the user's email/account ID into JQL",
+    "uses raw curl",
+    "outputs raw JSON"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}

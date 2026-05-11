@@ -1,0 +1,14 @@
+{
+  "test": "07-transition",
+  "model": "opus-4.7",
+  "timestamp": "2026-05-11T13:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "calls `jira transition KNW-31435` (no status arg) to list valid options first",
+    "proposes the final command using the exact transition name returned by JIRA (`To Testing`)",
+    "honors dry-run — does not execute the write transition"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Agent did one extra `jira get` for context (2 API calls total instead of 1). Not wrong, just slightly more than minimum. Reasoning for choosing `To Testing` over `In Progress`/`Cancelled` was sound."
+}
