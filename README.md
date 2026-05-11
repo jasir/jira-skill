@@ -7,8 +7,9 @@ The wrapper is just `curl` + `jq`. No Node, no Python, no daemons, no version dr
 ## Why
 
 - **MCP-free.** Works in any CLI agent (Claude Code, Cursor, plain shell). No `mcp-atlassian` to install, no Python virtualenv to maintain.
-- **Token-efficient.** Output is pre-formatted text — one line per issue in lists, four lines for a single issue — instead of raw JSON.
-- **Predictable.** A handful of subcommands, real exit codes, clear error messages (including the "JIRA returns 404 on auth failure" gotcha).
+- **Token-efficient.** Output is pre-formatted text. `jira show` returns header + description + comments in *one* API call with the ADF (Atlassian Document Format) already rendered to plain text — no raw JSON for the agent to wade through.
+- **Predictable.** A handful of subcommands, real exit codes, clear error messages (including the "JIRA returns 404 on auth failure" gotcha and an explicit `(no matching issues — JQL: ...)` line on empty searches so the agent doesn't second-guess).
+- **TDD-tested.** The repo ships test scenarios (`tests/*.json`) and result snapshots across Opus 4.7 / Sonnet 4.6, so behavior changes don't regress silently.
 
 ## What's in here
 
@@ -16,6 +17,7 @@ The wrapper is just `curl` + `jq`. No Node, no Python, no daemons, no version dr
 .
 ├── SKILL.md         # Skill manifest – instructions the AI agent reads
 ├── scripts/jira     # The bash wrapper (curl + jq)
+├── tests/           # TDD scenarios + per-model result snapshots
 └── README.md        # This file
 ```
 
@@ -62,16 +64,28 @@ It's just a script — call `jira help` for usage.
 
 ## Commands
 
-| Operation | Command |
-|-----------|---------|
-| Get issue | `jira get PROJ-123` |
-| Add comment | `jira comment PROJ-123 "text"` |
-| Search JQL | `jira search "project=PROJ AND status=Open"` |
-| List transitions | `jira transition PROJ-123` |
-| Apply transition | `jira transition PROJ-123 "In Progress"` |
-| Raw JSON | `jira --json get PROJ-123` |
+| Operation | Command | API calls |
+|-----------|---------|-----------|
+| Issue header | `jira get PROJ-123` | 1 |
+| Description (plain text, ADF rendered) | `jira describe PROJ-123` | 1 |
+| Comments (author, date, text) | `jira comments PROJ-123` | 1 |
+| **Header + description + comments** | **`jira show PROJ-123`** | **1** |
+| Add comment | `jira comment PROJ-123 "text"` | 1 |
+| Search JQL | `jira search "project=PROJ AND status=Open"` | 1 |
+| List transitions | `jira transition PROJ-123` | 1 |
+| Apply transition | `jira transition PROJ-123 "In Progress"` | 2 |
+| Raw JSON (custom extraction) | `jira --json get PROJ-123 \| jq ...` | 1 |
+| Raw JSON, narrowed payload | `jira --json get PROJ-123 -f reporter,labels \| jq .fields` | 1 |
+
+The last row matters: a default `--json get` returns ~200 fields. `-f` narrows that to the ones you actually need — a real context-window saving when an AI agent reads the response.
 
 See [`SKILL.md`](SKILL.md) for the full reference, examples, and troubleshooting.
+
+## Tests
+
+The `tests/` directory holds JSON scenarios (`<NN>-<name>.json`) — each scenario is a prompt + expected behaviors + anti-patterns to check against. Results per model live in `tests/results/`, and `tests/results/SUMMARY.md` keeps the compatibility matrix.
+
+Each scenario is small enough to drive an Agent invocation directly. The format is intentionally model-agnostic so you can re-run against any new release.
 
 ## License
 
