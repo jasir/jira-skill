@@ -1,0 +1,16 @@
+{
+  "test": "06-search-mine",
+  "model": "sonnet-4.6",
+  "iteration": "v2 (after 'empty is valid answer' amendment)",
+  "timestamp": "2026-05-11T14:00:00Z",
+  "score": "4/4",
+  "passed": [
+    "uses `jira search` with a JQL string",
+    "JQL contains `assignee = currentUser()`",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "presents empty result as a valid answer (no verification loop)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "FULL FIX from v1 (was 4 API calls). Now 1 API call. Explicitly cites the rule ('podle pravidel skillu — prázdný výsledek je platná odpověď'). Asks the user to clarify status name instead of substituting hardcoded values."
+}

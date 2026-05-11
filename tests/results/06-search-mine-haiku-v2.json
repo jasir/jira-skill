@@ -1,0 +1,20 @@
+{
+  "test": "06-search-mine",
+  "model": "haiku-4.5",
+  "iteration": "v2 (after 'empty is valid answer' amendment)",
+  "timestamp": "2026-05-11T14:00:00Z",
+  "score": "3/4 (partial improvement from 2/4)",
+  "passed": [
+    "uses `jira search` with a JQL string",
+    "JQL contains `assignee = currentUser()`",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`"
+  ],
+  "failed": [
+    "still does not trust the empty result completely — runs follow-up `--json search` listing all assigned tickets to inspect statuses"
+  ],
+  "anti_patterns_triggered": [
+    "raw `curl` on `/rest/api/3/myself` ('token verification')",
+    "lists all assigned tickets and filters by status in jq (instead of just answering)"
+  ],
+  "notes": "Improved from v1: no more hardcoded accountId. 4 API calls (down from 6). But haiku still has a 'verification reflex' — runs `curl /myself` ostensibly to validate the token even though the search succeeded. The agent's verbal answer is now correct (cites the related tickets in helpful framing), but the call pattern is still wasteful. Diminishing returns expected from further skill hardening — this is a haiku-class behavior."
+}

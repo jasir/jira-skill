@@ -1,0 +1,16 @@
+{
+  "test": "06-search-mine",
+  "model": "opus-4.7",
+  "iteration": "v2 (after 'empty is valid answer' amendment)",
+  "timestamp": "2026-05-11T14:00:00Z",
+  "score": "4/4",
+  "passed": [
+    "uses `jira search` with a JQL string",
+    "JQL contains `assignee = currentUser()`",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "presents results as a list (empty list handled gracefully)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "No regression. Now also explicitly cites the new rule ('Empty is a valid answer'). 1 API call. Offers to retry with other statuses but does not silently substitute."
+}

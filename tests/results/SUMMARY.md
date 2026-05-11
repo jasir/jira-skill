@@ -1,7 +1,7 @@
 # Test Results — Model Compatibility Matrix
 
 Run date: 2026-05-11
-Skill version: post-`show`-command refactor
+Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
 
 ## Score matrix (score / API calls)
 
@@ -10,41 +10,48 @@ Skill version: post-`show`-command refactor
 | 01 | show-full-ticket | ✅ 4/4 (1) | ✅ 4/4 (1) | ✅ 4/4 (1) |
 | 03 | comments-only | ✅ 3/3 (1) | ✅ 3/3 (1) | ✅ 3/3 (1) |
 | 05 | custom-field | ✅ 3/3 (1) | ✅ 3/3 (1) | ✅ 3/3 (1) |
-| 06 | search-mine | ✅ 4/4 (1) | ⚠️ 4/4 (4) | ❌ 2/4 (6) |
+| 06 v1 | search-mine | ✅ 4/4 (1) | ⚠️ 4/4 (4) | ❌ 2/4 (6) |
+| 06 v2 | search-mine (after fix) | ✅ 4/4 (1) | ✅ 4/4 (1) | ⚠️ 3/4 (4) |
 | 07 | transition (dry-run) | ✅ 3/3 (2) | ✅ 3/3 (1) | ✅ 3/3 (2) |
 
-**Overall:** 14/15 passes. One real failure: test 06 on Haiku.
+## REFACTOR iteration — outcome
+
+**Change:** added one row to Common Mistakes table:
+> Empty search result → re-running with `curl /myself` or hardcoded `accountId` to "verify" → **Empty is a valid answer.** Trust `currentUser()`…
+
+**Impact on test 06:**
+
+| Model | v1 calls | v2 calls | v1 anti-patterns | v2 anti-patterns | Verdict |
+|-------|----------|----------|------------------|------------------|---------|
+| Opus | 1 | 1 | 0 | 0 | No regression. Now cites the rule. |
+| Sonnet | 4 | 1 | 1 (borderline) | 0 | **Fully fixed.** Asks user instead of guessing. |
+| Haiku | 6 | 4 | 3 (hardcoded accountId, raw curl, list-all-and-filter) | 2 (raw curl `/myself`, list-all-and-filter) | **Partial.** Worst anti-pattern (hardcoded accountId) eliminated. |
 
 ## Per-test highlights
 
 ### Where all models agreed
-- **01 / 03 / 05** — all three models picked the canonical command (`show` / `comments` / `--json get | jq`) with exactly **one API call**. The skill's Quick Reference table is doing its job.
+- **01 / 03 / 05** — all three models picked the canonical command with exactly **one API call**.
 
-### Where smaller models differ from Opus
-- **06 search-mine** — Opus trusted the empty `currentUser()` result. Sonnet made 3 extra verification calls. Haiku made 5 extra calls *plus* hardcoded accountId *plus* raw curl to `/myself`. The wrapper's design was fine; the skill's wording isn't strict enough about *trusting* empty JQL results.
-- **07 transition** — Haiku was the only model that **verbally stated** the case-sensitivity rule for transition names, even though all three models did the right thing.
+### Where smaller models still differ
+- **06 v2 on Haiku** — still over-validates. Runs `curl /myself` as a token check even though the preceding search succeeded. Subsequent `--json search` lists all assigned tickets to inspect statuses (in lieu of asking the user).
 
 ### Where smaller models beat Opus
-- **03 comments-only** — Sonnet & Haiku picked the *narrower* `jira comments` command. Opus reached for the broader `jira show`. Both work; smaller models were more literal.
+- **03 comments-only** — Sonnet & Haiku picked the *narrower* `jira comments`. Opus reached for `jira show`.
+- **07 transition** — Haiku verbalized "name must be case-sensitive". Opus didn't.
 
-## Baseline (RED) vs GREEN summary
+## Baseline (RED) vs current GREEN
 
-Pre-refactor RED behavior (before `show`/`describe`/`comments` were added):
-- Agent fell back to **raw `curl`** on `/issue/{key}/comment` because the wrapper had no read command
-- Agent **hand-parsed ADF JSON** for description
-- Agent made **3 separate API calls** (issue + comment endpoint + expand fallback)
+Pre-`show` baseline:
+- Fall back to **raw `curl`** on `/issue/{key}/comment`
+- **Hand-parse ADF JSON** for description
+- **3 separate API calls** for ticket inspection (issue + comment endpoint + expand fallback)
 
-Post-refactor GREEN behavior (all three models):
-- `jira show` is the default for full-ticket inspection — **1 API call**
+Current GREEN (v2):
+- `jira show` for full-ticket inspection — **1 API call**
 - `jira comments` / `jira describe` for cherry-picked reads
 - `jira --json get | jq` for custom fields — **1 bash call, 1 API call**
-- **Zero raw `curl` invocations** in tests 01/03/05/07 across all models
+- **Empty JQL results trusted** by Opus and Sonnet; partially by Haiku
 
-## REFACTOR signal — open follow-up
+## Open follow-ups
 
-**Test 06 weakness on smaller models:** when a JQL search with `currentUser()` returns no issues, smaller models distrust the result and chase it with raw curl + hardcoded accountId.
-
-Proposed skill amendment (not yet implemented):
-> Empty result from a JQL search is a valid answer. Do **not** fall back to raw `curl` on `/myself`, do **not** substitute `assignee=currentUser()` with a hardcoded accountId. If the user might have phrased the status name differently (e.g. "rozpracované" vs "In Progress" vs "Code review"), re-ask the user rather than guessing.
-
-This would be a `08-empty-result-trust.json` test plus a Common Mistakes row in SKILL.md.
+**Haiku's "token verification reflex"** — even with the new rule, Haiku runs `curl /myself` after a successful search. Could be addressed with another explicit row ("Don't validate token after a successful query") but cost-benefit is marginal: ~50 SKILL.md tokens loaded every session vs. ~1 extra API call in rare empty-result scenarios on Haiku-class models. **Decision: accept and document, do not harden further.**

@@ -86,6 +86,7 @@ jira transition PROJ-123 "To Done"
 | Three calls (`get` + `describe` + `comments`) to investigate ticket | Use `jira show` — one call, same info |
 | Raw `curl` to `/rest/api/3/issue/{key}/comment` | Use `jira comments` (already calls that endpoint) |
 | Hand-parsing ADF description JSON | Use `jira describe` or `jira show` — wrapper renders ADF to text |
+| Empty search result → re-running with `curl /myself` or hardcoded `accountId` to "verify" | **Empty is a valid answer.** Trust `currentUser()`. Do NOT substitute it with an accountId fetched from `/myself`. If the user's status word might not match JIRA's exact label (e.g. "rozpracované" → could be `In Progress`, `Code review`, etc.), ask the user before re-querying. |
 | `Error: HTTP 410` on search | Atlassian removed `/rest/api/3/search` — script uses `/rest/api/3/search/jql` (already fixed) |
 | `Error: not found (404)` even though issue exists | Token expired – verify with `curl -u user:token <JIRA_URL>/rest/api/3/myself` |
 | Comment with apostrophes breaks | Use `$'text with \'quotes\''` or pass via variable |
