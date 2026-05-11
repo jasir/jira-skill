@@ -14,6 +14,7 @@ Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
 | 06 v2 | search-mine (skill amendment) | ✅ 4/4 (1) | ✅ 4/4 (1) | ⚠️ 3/4 (4) |
 | 06 v3 | search-mine (script emits explicit empty) | ✅ 4/4 (1) | ⚠️ 4/4 (2) UX win | n/a (Haiku dropped) |
 | 07 | transition (dry-run) | ✅ 3/3 (2) | ✅ 3/3 (1) | ✅ 3/3 (2) |
+| 09 | narrow-payload (`-f` flag) | ✅ 3/3 (1) | ✅ 3/3 (1) | n/a |
 
 ## REFACTOR iteration — outcome
 
@@ -62,6 +63,12 @@ Instead of writing yet another rule in SKILL.md, v3 fixed the root cause: empty 
 - Sonnet: now does 2 calls (1 more than v2) — but uses the extra call to *enumerate* available statuses rather than *guess* them. Arguably better UX, slightly higher token cost.
 
 **Haiku: dropped from the matrix.** Smaller models will continue to over-validate; the cost-benefit of hardening the skill further for that model class is negative.
+
+## v4 iteration — narrow payload via `-f` flag
+
+`jira get` now accepts `-f field1,field2,...` which forwards `?fields=...` to JIRA's API. The wrapper's default `--json get` returned **all ~218 fields**; with `-f reporter,labels` it returns just **2 fields**. The agent's context window pays for what comes back from JIRA, so this is a measurable token win for custom-extraction queries.
+
+Test 09 (new): both Opus and Sonnet picked the pattern up immediately, producing identical commands. The skill's "Raw JSON, narrowed payload" Quick Reference row is doing its job.
 
 ## Open follow-ups
 

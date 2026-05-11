@@ -45,6 +45,7 @@ ln -sf "$(pwd)/scripts/jira" ~/.local/bin/jira
 | List transitions | `jira transition PROJ-123` | 1 |
 | Apply transition | `jira transition PROJ-123 "In Progress"` | 2 |
 | Raw JSON (custom extraction) | `jira --json get PROJ-123 \| jq ...` | 1 |
+| Raw JSON, narrowed payload | `jira --json get PROJ-123 -f reporter,labels \| jq .fields` | 1 |
 
 **Prefer `show` when you need everything** — one API call, fully rendered (description ADF → plain text, comments with author/date). Saves tokens and round-trips.
 
@@ -66,8 +67,9 @@ jira search "project=PROJ AND status='In Progress' AND assignee=currentUser()"
 # Custom field that isn't in formatted output → --json + jq
 jira --json get PROJ-123 | jq -r '.fields.reporter.displayName, .fields.labels[]'
 
-# Bulk extraction with one API call (when you need multiple custom fields)
-jira --json get PROJ-123 | jq '{
+# Bulk extraction with NARROWED payload (-f tells JIRA to skip everything else)
+# A full `--json get` returns ~200 fields; -f drops it to just what you need.
+jira --json get PROJ-123 -f summary,reporter,labels,parent | jq '{
   summary: .fields.summary,
   reporter: .fields.reporter.displayName,
   labels: .fields.labels,

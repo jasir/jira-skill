@@ -1,0 +1,14 @@
+{
+  "test": "09-narrow-payload",
+  "model": "opus-4.7",
+  "timestamp": "2026-05-11T15:00:00Z",
+  "score": "3/3",
+  "passed": [
+    "uses `jira --json get KNW-31435 -f reporter,labels`",
+    "pipes to jq to format the answer",
+    "outputs only reporter name + labels (nothing else)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Cites the skill's 'Raw JSON, narrowed payload' pattern by name in TECH NOTE. Exact command: `jira --json get KNW-31435 -f reporter,labels | jq '{reporter: .fields.reporter.displayName, labels: .fields.labels}'`"
+}

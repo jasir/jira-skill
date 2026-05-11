@@ -1,0 +1,18 @@
+{
+  "name": "narrow-payload",
+  "description": "When user asks for specific fields and explicitly wants a minimal payload, agent should use `-f` to restrict the JSON response (not pull all 200 fields and filter with jq).",
+  "prompt": "Potřebuju jen reporter (displayName) a labels ticketu KNW-31435. Chci minimální payload — nevolej JIRA aby vracela víc dat, než potřebuju.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira --json get KNW-31435 -f reporter,labels`",
+    "pipes to jq to format the answer",
+    "outputs only reporter name + labels (nothing else)"
+  ],
+  "anti_patterns": [
+    "calls `jira --json get KNW-31435` without `-f` (pulls all ~200 fields)",
+    "calls `jira show` (massive overkill)",
+    "makes two separate calls (one per field)"
+  ],
+  "models": ["sonnet", "opus"],
+  "min_pass_model": "sonnet"
+}

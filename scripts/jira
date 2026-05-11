@@ -97,8 +97,14 @@ _curl() {
 
 case "$cmd" in
   get)
-    issue="${1:?Usage: jira get <ISSUE-KEY>}"
-    r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue")
+    issue="${1:?Usage: jira get <ISSUE-KEY> [-f field1,field2,...]}"
+    shift
+    qs=""
+    if [[ "${1:-}" == "-f" || "${1:-}" == "--fields" ]]; then
+      qs="?fields=${2:?Missing field list after $1}"
+      shift 2
+    fi
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" "$BASE_URL/issue/$issue$qs")
     if $JSON; then echo "$r" | jq .; else echo "$r" | _fmt_issue; fi
     ;;
 
@@ -188,7 +194,8 @@ case "$cmd" in
 Usage: jira [--json] <command> [args...]
 
 Commands:
-  get <ISSUE-KEY>                   Issue header (status, summary, assignee, URL)
+  get <ISSUE-KEY> [-f f1,f2,...]    Issue (formatted header by default; with --json,
+                                    pair -f to narrow the JSON payload to listed fields)
   describe <ISSUE-KEY>              Description as plain text (ADF rendered)
   comments <ISSUE-KEY>              All comments (author, date, text)
   show <ISSUE-KEY>                  Header + description + comments (ONE API call)
@@ -210,6 +217,7 @@ Examples:
   jira transition PROJ-123 "In Progress"
   jira transition PROJ-123                 # lists available transitions
   jira --json get PROJ-123 | jq .fields.status
+  jira --json get PROJ-123 -f reporter,labels | jq '.fields'    # minimal payload
 
 Credentials: ~/.config/jira/credentials
 EOF
