@@ -11,7 +11,8 @@ Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
 | 03 | comments-only | ✅ 3/3 (1) | ✅ 3/3 (1) | ✅ 3/3 (1) |
 | 05 | custom-field | ✅ 3/3 (1) | ✅ 3/3 (1) | ✅ 3/3 (1) |
 | 06 v1 | search-mine | ✅ 4/4 (1) | ⚠️ 4/4 (4) | ❌ 2/4 (6) |
-| 06 v2 | search-mine (after fix) | ✅ 4/4 (1) | ✅ 4/4 (1) | ⚠️ 3/4 (4) |
+| 06 v2 | search-mine (skill amendment) | ✅ 4/4 (1) | ✅ 4/4 (1) | ⚠️ 3/4 (4) |
+| 06 v3 | search-mine (script emits explicit empty) | ✅ 4/4 (1) | ⚠️ 4/4 (2) UX win | n/a (Haiku dropped) |
 | 07 | transition (dry-run) | ✅ 3/3 (2) | ✅ 3/3 (1) | ✅ 3/3 (2) |
 
 ## REFACTOR iteration — outcome
@@ -52,6 +53,16 @@ Current GREEN (v2):
 - `jira --json get | jq` for custom fields — **1 bash call, 1 API call**
 - **Empty JQL results trusted** by Opus and Sonnet; partially by Haiku
 
+## v3 iteration — root-cause fix at the script level
+
+Instead of writing yet another rule in SKILL.md, v3 fixed the root cause: empty `jira search` used to emit nothing (ambiguous), now it emits `(no matching issues — JQL: ...)`. This makes the empty case self-evident to the agent and lets the Common Mistakes row in SKILL.md slim down (no longer mentions `curl /myself`).
+
+**Net effect:**
+- Opus: stable (1 call, asks user about alternative status name)
+- Sonnet: now does 2 calls (1 more than v2) — but uses the extra call to *enumerate* available statuses rather than *guess* them. Arguably better UX, slightly higher token cost.
+
+**Haiku: dropped from the matrix.** Smaller models will continue to over-validate; the cost-benefit of hardening the skill further for that model class is negative.
+
 ## Open follow-ups
 
-**Haiku's "token verification reflex"** — even with the new rule, Haiku runs `curl /myself` after a successful search. Could be addressed with another explicit row ("Don't validate token after a successful query") but cost-benefit is marginal: ~50 SKILL.md tokens loaded every session vs. ~1 extra API call in rare empty-result scenarios on Haiku-class models. **Decision: accept and document, do not harden further.**
+- **Sonnet v3 trade-off:** 1 extra call in exchange for better UX (shows alternatives instead of asking). Token-strict mode would tighten the SKILL.md rule to "ask first, don't enumerate". Helpful-mode accepts current behavior. Decision deferred to user.

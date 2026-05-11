@@ -1,0 +1,18 @@
+{
+  "test": "06-search-mine",
+  "model": "sonnet-4.6",
+  "iteration": "v3 (script emits explicit '(no matching issues — JQL: ...)' on empty)",
+  "timestamp": "2026-05-11T14:30:00Z",
+  "score": "4/4 with caveat (UX win, token cost up)",
+  "passed": [
+    "uses `jira search` with JQL on first call",
+    "JQL contains `assignee = currentUser()`",
+    "JQL filters by `status = 'In Progress'` and `project = KNW`",
+    "treats the empty result as a valid answer (does NOT retry the same query or hardcode accountId)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [
+    "borderline: 2 API calls instead of 1 — second call enumerated all assigned tickets to surface alternative statuses"
+  ],
+  "notes": "Sonnet interpreted 'don't guess status names' liberally: instead of asking the user, it ran a broader query (without status filter) to show what statuses are actually available. UX is arguably better than v2 (1 call + a question) — user gets actionable info immediately — but at the cost of one extra API call. The agent explicitly justified this in its TECH NOTE: 'second broader call was made … to reveal actual ticket statuses rather than guessing alternative status names'. Whether to harden against this depends on whether token cost or UX takes priority."
+}

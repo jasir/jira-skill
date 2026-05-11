@@ -149,7 +149,15 @@ case "$cmd" in
       --data-urlencode "jql=$jql_query" \
       --data-urlencode "maxResults=$max" \
       --data-urlencode "fields=summary,status,assignee,priority")
-    if $JSON; then echo "$r" | jq .; else echo "$r" | _fmt_list; fi
+    if $JSON; then echo "$r" | jq .
+    else
+      count=$(echo "$r" | jq '.issues | length')
+      if [[ "$count" == "0" ]]; then
+        echo "(no matching issues — JQL: $jql_query)"
+      else
+        echo "$r" | _fmt_list
+      fi
+    fi
     ;;
 
   transition)
