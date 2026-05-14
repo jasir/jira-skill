@@ -1,6 +1,6 @@
 ---
 name: using-jira
-description: Use when querying JIRA issues, reading descriptions or comments, adding comments, searching with JQL, or transitioning issue status - wraps JIRA REST API v3 via curl script at ~/.local/bin/jira with formatted output; requires one-time credentials setup at ~/.config/jira/credentials
+description: You MUST use when querying JIRA issues, reading descriptions or comments, adding comments, searching with JQL, or transitioning issue status - wraps JIRA REST API v3 via curl script at ~/.local/bin/jira with formatted output; requires one-time credentials setup at ~/.config/jira/credentials
 ---
 
 # Using JIRA
