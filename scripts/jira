@@ -36,6 +36,11 @@ _ADF_JQ='
 def t:
   if type == "object" then
     if .type == "text" then (.text // "")
+    elif .type == "inlineCard" then
+      (.attrs.url // "") as $u
+      | ($u | split("/browse/") | .[1] // "") as $tail
+      | ($tail | split("?")[0] | split("#")[0]) as $candidate
+      | if ($candidate | test("^[A-Z][A-Z0-9]+-[0-9]+$")) then "[" + $candidate + "]" else "[link]" end
     elif .type == "hardBreak" then "\n"
     elif .type == "listItem" then "- " + ([(.content // [])[] | t] | join("")) + "\n"
     elif .type == "paragraph" then ([(.content // [])[] | t] | join("")) + "\n"
@@ -67,13 +72,80 @@ _fmt_comments() {
     return
   fi
   echo "$data" | jq -c '.comments[]' | while IFS= read -r c; do
-    local author created
+    local author created id
     author=$(echo "$c" | jq -r '.author.displayName')
     created=$(echo "$c" | jq -r '.created | .[0:16] | sub("T"; " ")')
-    echo "── $author — $created"
+    id=$(echo "$c" | jq -r '.id')
+    echo "── $author — $created (id: $id)"
     echo "$c" | jq '.body' | _adf2text
     echo ""
   done
+}
+
+_build_comment_nodes() {
+  local text="$1"
+  local remaining="$text"
+  local nodes='[]'
+  local idx=1
+
+  while [[ "$remaining" =~ \[\[([A-Z][A-Z0-9]+-[0-9]+)\]\] ]]; do
+    local marker key prefix
+    marker="${BASH_REMATCH[0]}"
+    key="${BASH_REMATCH[1]}"
+    prefix="${remaining%%"$marker"*}"
+
+    if [[ -n "$prefix" ]]; then
+      nodes=$(echo "$nodes" | jq -c --arg t "$prefix" '. + [{"type":"text","text":$t}]')
+    fi
+    nodes=$(echo "$nodes" | jq -c --arg u "${JIRA_URL}/browse/${key}" --arg lid "link-${key}-${idx}" \
+      '. + [{"type":"inlineCard","attrs":{"url":$u,"localId":$lid}}]')
+
+    remaining="${remaining#*"$marker"}"
+    idx=$((idx + 1))
+  done
+
+  if [[ -n "$remaining" ]]; then
+    nodes=$(echo "$nodes" | jq -c --arg t "$remaining" '. + [{"type":"text","text":$t}]')
+  fi
+
+  echo "$nodes"
+}
+
+_fmt_changelog() {
+  local data="$1"
+  local limit="$2"
+  local skip_system="$3"
+  local skip_json="false"
+  if [[ "$skip_system" == "true" ]]; then
+    skip_json="true"
+  fi
+
+  local out
+  out=$(echo "$data" | jq -r --argjson n "$limit" --argjson skip "$skip_json" '
+    def noisy: ["IssueParentAssociation","Rank","WorklogId","Attachment"];
+    def normalize(v): if v == null or v == "" then "∅" else (v|tostring) end;
+    def latest($n):
+      if length <= $n then .
+      elif .[0].created <= .[-1].created then .[(length-$n):]
+      else .[0:$n]
+      end;
+    [(.values // [])[]]
+    | latest($n)
+    | map(
+        . as $h
+        | ($h.items // []
+          | map(select((not $skip) or ((noisy | index(.field)) == null)))) as $items
+        | if ($items | length) == 0 then empty
+          else
+            (($h.created[0:16] | sub("T"; " ")) + " — " + ($h.author.displayName // "Unknown")) + "\n" +
+            ($items
+              | map("  " + (.field // "field") + ": " + normalize(.fromString // .from) + " → " + normalize(.toString // .to))
+              | join("\n"))
+          end
+      )
+    | if length == 0 then "(no changelog entries)" else join("\n\n") end
+  ')
+  echo "$out"
 }
 
 _curl() {
@@ -139,13 +211,88 @@ case "$cmd" in
   comment)
     issue="${1:?Usage: jira comment <ISSUE-KEY> <text>}"
     text="${2:?Missing comment text}"
-    body=$(jq -n --arg t "$text" \
-      '{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":$t}]}]}}')
+    nodes=$(_build_comment_nodes "$text")
+    body=$(jq -n --argjson nodes "$nodes" \
+      '{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":$nodes}]}}')
     _curl -u "$AUTH" \
       -H "Content-Type: application/json" \
       -H "Accept: application/json" \
       -X POST "$BASE_URL/issue/$issue/comment" \
       -d "$body" | jq -r '"Comment added (id: " + .id + ") to '"$issue"'"'
+    ;;
+
+  comment-delete)
+    issue="${1:?Usage: jira comment-delete <ISSUE-KEY> <comment-id>}"
+    comment_id="${2:?Missing comment id}"
+    _curl -u "$AUTH" \
+      -H "Accept: application/json" \
+      -X DELETE "$BASE_URL/issue/$issue/comment/$comment_id" > /dev/null
+    echo "Comment deleted (id: $comment_id) from $issue"
+    ;;
+
+  api)
+    method="${1:?Usage: jira api <METHOD> <path> [-q key=val] [-d json | -f file.json]}"
+    path="${2:?Usage: jira api <METHOD> <path> [-q key=val] [-d json | -f file.json]}"
+    shift 2
+    method="${method^^}"
+    path="${path#/}"
+    url="$BASE_URL/$path"
+    data=""
+    data_file=""
+    query_string=""
+    curl_args=(-u "$AUTH" -H "Accept: application/json" -X "$method")
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -q|--query)
+          kv="${2:?Missing query key=val after $1}"
+          if [[ "$kv" != *=* ]]; then
+            echo "Error: query must be key=val (got: $kv)" >&2
+            exit 1
+          fi
+          qk="${kv%%=*}"
+          qv="${kv#*=}"
+          qk_enc=$(jq -rn --arg s "$qk" '$s|@uri')
+          qv_enc=$(jq -rn --arg s "$qv" '$s|@uri')
+          if [[ -n "$query_string" ]]; then
+            query_string="${query_string}&${qk_enc}=${qv_enc}"
+          else
+            query_string="${qk_enc}=${qv_enc}"
+          fi
+          shift 2
+          ;;
+        -d|--data)
+          data="${2:?Missing JSON payload after $1}"
+          shift 2
+          ;;
+        -f|--file)
+          data_file="${2:?Missing JSON file path after $1}"
+          shift 2
+          ;;
+        *)
+          echo "Usage: jira api <METHOD> <path> [-q key=val] [-d json | -f file.json]" >&2
+          exit 1
+          ;;
+      esac
+    done
+    if [[ -n "$data" && -n "$data_file" ]]; then
+      echo "Error: use either -d or -f, not both" >&2
+      exit 1
+    fi
+    if [[ -n "$data_file" ]]; then
+      data="$(cat "$data_file")"
+    fi
+    if [[ -n "$data" ]]; then
+      curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    if [[ -n "$query_string" ]]; then
+      url="${url}?${query_string}"
+    fi
+    r=$(_curl "${curl_args[@]}" "$url")
+    if echo "$r" | jq -e . >/dev/null 2>&1; then
+      echo "$r" | jq .
+    else
+      echo "$r"
+    fi
     ;;
 
   search|jql)
@@ -189,6 +336,85 @@ case "$cmd" in
     echo "Transitioned $issue → $target"
     ;;
 
+  changelog)
+    issue="${1:?Usage: jira changelog <ISSUE-KEY> [maxResults] [--skip-system]}"
+    shift
+    max=25
+    skip_system=false
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --skip-system)
+          skip_system=true
+          shift
+          ;;
+        ''|*[!0-9]*)
+          echo "Usage: jira changelog <ISSUE-KEY> [maxResults] [--skip-system]" >&2
+          exit 1
+          ;;
+        *)
+          max="$1"
+          shift
+          ;;
+      esac
+    done
+    fetch_max="$max"
+    if (( fetch_max < 100 )); then fetch_max=100; fi
+    r=$(_curl -u "$AUTH" -H "Accept: application/json" \
+      "$BASE_URL/issue/$issue/changelog?maxResults=$fetch_max")
+    if $JSON; then echo "$r" | jq .
+    else _fmt_changelog "$r" "$max" "$skip_system"; fi
+    ;;
+
+  history)
+    issue="${1:?Usage: jira history <ISSUE-KEY> [maxChangelog] [maxComments] [--skip-system]}"
+    shift
+    max_changelog=10
+    max_comments=5
+    skip_system=false
+    num_seen=0
+    for arg in "$@"; do
+      if [[ "$arg" == "--skip-system" ]]; then
+        skip_system=true
+      elif [[ "$arg" =~ ^[0-9]+$ ]]; then
+        if (( num_seen == 0 )); then
+          max_changelog="$arg"
+        elif (( num_seen == 1 )); then
+          max_comments="$arg"
+        else
+          echo "Usage: jira history <ISSUE-KEY> [maxChangelog] [maxComments] [--skip-system]" >&2
+          exit 1
+        fi
+        num_seen=$((num_seen + 1))
+      else
+        echo "Usage: jira history <ISSUE-KEY> [maxChangelog] [maxComments] [--skip-system]" >&2
+        exit 1
+      fi
+    done
+
+    r_issue=$(_curl -u "$AUTH" -H "Accept: application/json" \
+      "$BASE_URL/issue/$issue?fields=summary,status,assignee,priority,comment")
+    fetch_max="$max_changelog"
+    if (( fetch_max < 100 )); then fetch_max=100; fi
+    r_changelog=$(_curl -u "$AUTH" -H "Accept: application/json" \
+      "$BASE_URL/issue/$issue/changelog?maxResults=$fetch_max")
+
+    if $JSON; then
+      jq -n --argjson issue "$r_issue" --argjson changelog "$r_changelog" \
+        '{"issue":$issue,"changelog":$changelog}'
+      exit 0
+    fi
+
+    echo "$r_issue" | _fmt_issue
+    echo ""
+    echo "── Changelog ──"
+    _fmt_changelog "$r_changelog" "$max_changelog" "$skip_system"
+    echo ""
+    echo "── Recent comments ──"
+    _fmt_comments "$(echo "$r_issue" | jq --argjson n "$max_comments" '
+      {comments: ((.fields.comment.comments // []) as $c
+        | if ($c | length) <= $n then $c else $c[(($c | length)-$n):] end)}')"
+    ;;
+
   help|--help|-h)
     cat << 'EOF'
 Usage: jira [--json] <command> [args...]
@@ -199,7 +425,11 @@ Commands:
   describe <ISSUE-KEY>              Description as plain text (ADF rendered)
   comments <ISSUE-KEY>              All comments (author, date, text)
   show <ISSUE-KEY>                  Header + description + comments (ONE API call)
-  comment <ISSUE-KEY> <text>        Add comment to issue
+  comment <ISSUE-KEY> <text>        Add comment to issue (`[[KEY]]` creates linked issue card)
+  comment-delete <ISSUE-KEY> <id>   Delete comment by id
+  api <METHOD> <path> [...]         Generic REST wrapper under /rest/api/3/
+  changelog <ISSUE-KEY> [n] [...]   Field change history (latest n entries, default 25)
+  history <ISSUE-KEY> [...]         Header + changelog + recent comments (2 API calls)
   search <JQL> [maxResults]         Search issues with JQL (default: 25)
   jql <JQL> [maxResults]            Alias for search
   transition <ISSUE-KEY> [status]   Transition issue status (no status = list available)
@@ -212,7 +442,11 @@ Examples:
   jira get PROJ-123                        # just the header
   jira describe PROJ-123                   # description only
   jira comments PROJ-123                   # comments only
-  jira comment PROJ-123 "Fixed in build 1.2.3"
+  jira comment PROJ-123 "Covers [[KNW-30718]] too"
+  jira comment-delete PROJ-123 881685
+  jira api GET issue/PROJ-123/changelog -q maxResults=20
+  jira changelog PROJ-123 20 --skip-system
+  jira history PROJ-123 10 5 --skip-system
   jira search "project=PROJ AND status=Open AND assignee=currentUser()"
   jira transition PROJ-123 "In Progress"
   jira transition PROJ-123                 # lists available transitions

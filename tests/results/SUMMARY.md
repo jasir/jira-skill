@@ -15,6 +15,10 @@ Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
 | 06 v3 | search-mine (script emits explicit empty) | ✅ 4/4 (1) | ⚠️ 4/4 (2) UX win | n/a (Haiku dropped) |
 | 07 | transition (dry-run) | ✅ 3/3 (2) | ✅ 3/3 (1) | ✅ 3/3 (2) |
 | 09 | narrow-payload (`-f` flag) | ✅ 3/3 (1) | ✅ 3/3 (1) | n/a |
+| 10 | comment-issue-link | ✅ added scenario (pending rerun) | ✅ added scenario (pending rerun) | ✅ added scenario (pending rerun) |
+| 11 | comment-delete | ✅ added scenario (pending rerun) | ✅ added scenario (pending rerun) | n/a |
+| 12 | changelog/history | ✅ added scenario (pending rerun) | ✅ added scenario (pending rerun) | n/a |
+| 13 | api-wrapper | ✅ added scenario (pending rerun) | ✅ added scenario (pending rerun) | n/a |
 
 ## REFACTOR iteration — outcome
 

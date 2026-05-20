@@ -70,7 +70,11 @@ It's just a script — call `jira help` for usage.
 | Description (plain text, ADF rendered) | `jira describe PROJ-123` | 1 |
 | Comments (author, date, text) | `jira comments PROJ-123` | 1 |
 | **Header + description + comments** | **`jira show PROJ-123`** | **1** |
-| Add comment | `jira comment PROJ-123 "text"` | 1 |
+| Add comment | `jira comment PROJ-123 "text with [[OTHER-123]]"` | 1 |
+| Delete comment | `jira comment-delete PROJ-123 881685` | 1 |
+| Changelog | `jira changelog PROJ-123 20 --skip-system` | 1 |
+| Combined history | `jira history PROJ-123 10 5 --skip-system` | 2 |
+| Generic REST API | `jira api GET issue/PROJ-123/changelog -q maxResults=20` | 1 |
 | Search JQL | `jira search "project=PROJ AND status=Open"` | 1 |
 | List transitions | `jira transition PROJ-123` | 1 |
 | Apply transition | `jira transition PROJ-123 "In Progress"` | 2 |
@@ -81,9 +85,23 @@ The last row matters: a default `--json get` returns ~200 fields. `-f` narrows t
 
 See [`SKILL.md`](SKILL.md) for the full reference, examples, and troubleshooting.
 
-## Planned work
+## Linking issues in comments
 
-Implementation tracked in **[GitHub issue #1](https://github.com/jasir/jira-skill/issues/1)** (issue links `[[KEY]]`, `comment-delete`, `api`, `changelog`/`history`). Spec copy: [`docs/issue-1-enhancements.md`](docs/issue-1-enhancements.md). TDD stubs: `tests/10`–`13` (pending script changes).
+Use `[[KEY]]` inside `jira comment` text for clickable JIRA issue cards:
+
+```bash
+jira comment PROJ-123 "Also covers [[KNW-30718]]"
+```
+
+`**KNW-30718**` (markdown bold) or plain `KNW-30718` will not create an inline issue card in JIRA UI.
+
+## History and API access
+
+- `jira changelog PROJ-123 [maxResults] [--skip-system]` prints formatted field history.
+- `jira history PROJ-123 [maxChangelog] [maxComments] [--skip-system]` prints header + recent changelog + recent comments.
+- `jira api <METHOD> <path> [-q key=val] [-d json | -f file.json]` gives generic access under `/rest/api/3/`.
+
+Use dedicated commands first; use `jira api` for endpoints not yet wrapped. Keep raw `curl` only for troubleshooting token checks (`/myself`).
 
 ## Tests
 
