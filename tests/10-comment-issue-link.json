@@ -1,0 +1,20 @@
+{
+  "name": "comment-issue-link",
+  "description": "Comment referencing another issue must use [[KEY]] marker, not markdown or hand-built ADF.",
+  "prompt": "Přidej komentář k KNW-30344, že práce řeší i KNW-30718 (horizon 0–28). Příkaz jen navrhni, nespouštěj.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "proposes `jira comment KNW-30344` with `[[KNW-30718]]` in the text",
+    "does not use `**KNW-30718**` or plain key without [[ ]] for the link",
+    "does not hand-construct inlineCard ADF JSON",
+    "does not use raw curl -X POST"
+  ],
+  "anti_patterns": [
+    "constructs `{\"type\":\"inlineCard\"` JSON manually",
+    "uses raw curl with credentials",
+    "uses only plain text KNW-30718 expecting a JIRA issue card"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet",
+  "_tracking_issue": "https://github.com/jasir/jira-skill/issues/1"
+}

@@ -81,6 +81,10 @@ The last row matters: a default `--json get` returns ~200 fields. `-f` narrows t
 
 See [`SKILL.md`](SKILL.md) for the full reference, examples, and troubleshooting.
 
+## Planned work
+
+Implementation tracked in **[GitHub issue #1](https://github.com/jasir/jira-skill/issues/1)** (issue links `[[KEY]]`, `comment-delete`, `api`, `changelog`/`history`). Spec copy: [`docs/issue-1-enhancements.md`](docs/issue-1-enhancements.md). TDD stubs: `tests/10`–`13` (pending script changes).
+
 ## Tests
 
 The `tests/` directory holds JSON scenarios (`<NN>-<name>.json`) — each scenario is a prompt + expected behaviors + anti-patterns to check against. Results per model live in `tests/results/`, and `tests/results/SUMMARY.md` keeps the compatibility matrix.
