@@ -20,6 +20,9 @@ source "$CREDS"
 
 BASE_URL="${JIRA_URL}/rest/api/3"
 AUTH="${JIRA_USER}:${JIRA_TOKEN}"
+ISSUE_KEY_RE='[A-Z][A-Z0-9]+-[0-9]+'
+MIN_CHANGELOG_FETCH=100
+SYSTEM_CHANGELOG_FIELDS_JSON='["IssueParentAssociation","Rank","WorklogId","Attachment"]'
 
 JSON=false
 if [[ "${1:-}" == "--json" ]]; then
@@ -38,9 +41,8 @@ def t:
     if .type == "text" then (.text // "")
     elif .type == "inlineCard" then
       (.attrs.url // "") as $u
-      | ($u | split("/browse/") | .[1] // "") as $tail
-      | ($tail | split("?")[0] | split("#")[0]) as $candidate
-      | if ($candidate | test("^[A-Z][A-Z0-9]+-[0-9]+$")) then "[" + $candidate + "]" else "[link]" end
+      | (try ($u | capture($issue_re_capture).k) catch "") as $candidate
+      | if ($candidate | test($issue_re)) then "[" + $candidate + "]" else "[link]" end
     elif .type == "hardBreak" then "\n"
     elif .type == "listItem" then "- " + ([(.content // [])[] | t] | join("")) + "\n"
     elif .type == "paragraph" then ([(.content // [])[] | t] | join("")) + "\n"
@@ -53,7 +55,9 @@ def t:
 if . == null then "" else t end
 '
 
-_adf2text() { jq -r "$_ADF_JQ"; }
+_adf2text() {
+  jq -r --arg issue_re "^${ISSUE_KEY_RE}$" --arg issue_re_capture "/browse/(?<k>${ISSUE_KEY_RE})" "$_ADF_JQ"
+}
 
 _fmt_issue() {
   jq -r '"[\(.fields.status.name)] \(.key): \(.fields.summary)\nAssignee: \(.fields.assignee.displayName // "Unassigned")\nPriority:  \(.fields.priority.name)\nURL:       '"${JIRA_URL}"'/browse/\(.key)"'
@@ -88,7 +92,7 @@ _build_comment_nodes() {
   local nodes='[]'
   local idx=1
 
-  while [[ "$remaining" =~ \[\[([A-Z][A-Z0-9]+-[0-9]+)\]\] ]]; do
+  while [[ "$remaining" =~ \[\[(${ISSUE_KEY_RE})\]\] ]]; do
     local marker key prefix
     marker="${BASH_REMATCH[0]}"
     key="${BASH_REMATCH[1]}"
@@ -121,20 +125,19 @@ _fmt_changelog() {
   fi
 
   local out
-  out=$(echo "$data" | jq -r --argjson n "$limit" --argjson skip "$skip_json" '
-    def noisy: ["IssueParentAssociation","Rank","WorklogId","Attachment"];
-    def normalize(v): if v == null or v == "" then "∅" else (v|tostring) end;
+  out=$(echo "$data" | jq -r --argjson n "$limit" --argjson skip "$skip_json" \
+    --argjson system_fields "$SYSTEM_CHANGELOG_FIELDS_JSON" '
+    def system_fields: $system_fields;
+    def normalize(v): if v == null or v == "" then "(empty)" else (v|tostring) end;
     def latest($n):
-      if length <= $n then .
-      elif .[0].created <= .[-1].created then .[(length-$n):]
-      else .[0:$n]
-      end;
+      sort_by(.created)
+      | if length <= $n then . else .[(length-$n):] end;
     [(.values // [])[]]
     | latest($n)
     | map(
         . as $h
         | ($h.items // []
-          | map(select((not $skip) or ((noisy | index(.field)) == null)))) as $items
+          | map(select((not $skip) or ((system_fields | index(.field)) == null)))) as $items
         | if ($items | length) == 0 then empty
           else
             (($h.created[0:16] | sub("T"; " ")) + " — " + ($h.author.displayName // "Unknown")) + "\n" +
@@ -146,6 +149,15 @@ _fmt_changelog() {
     | if length == 0 then "(no changelog entries)" else join("\n\n") end
   ')
   echo "$out"
+}
+
+_fetch_changelog_window() {
+  local issue="$1"
+  local limit="$2"
+  local effective_limit="$limit"
+  if (( effective_limit < MIN_CHANGELOG_FETCH )); then effective_limit="$MIN_CHANGELOG_FETCH"; fi
+  _curl -u "$AUTH" -H "Accept: application/json" \
+    "$BASE_URL/issue/$issue/changelog?maxResults=$effective_limit"
 }
 
 _curl() {
@@ -347,7 +359,8 @@ case "$cmd" in
           skip_system=true
           shift
           ;;
-        ''|*[!0-9]*)
+        *[!0-9]*)
+          echo "Error: invalid maxResults '$1' (must be a number)" >&2
           echo "Usage: jira changelog <ISSUE-KEY> [maxResults] [--skip-system]" >&2
           exit 1
           ;;
@@ -357,10 +370,7 @@ case "$cmd" in
           ;;
       esac
     done
-    fetch_max="$max"
-    if (( fetch_max < 100 )); then fetch_max=100; fi
-    r=$(_curl -u "$AUTH" -H "Accept: application/json" \
-      "$BASE_URL/issue/$issue/changelog?maxResults=$fetch_max")
+    r=$(_fetch_changelog_window "$issue" "$max")
     if $JSON; then echo "$r" | jq .
     else _fmt_changelog "$r" "$max" "$skip_system"; fi
     ;;
@@ -393,10 +403,7 @@ case "$cmd" in
 
     r_issue=$(_curl -u "$AUTH" -H "Accept: application/json" \
       "$BASE_URL/issue/$issue?fields=summary,status,assignee,priority,comment")
-    fetch_max="$max_changelog"
-    if (( fetch_max < 100 )); then fetch_max=100; fi
-    r_changelog=$(_curl -u "$AUTH" -H "Accept: application/json" \
-      "$BASE_URL/issue/$issue/changelog?maxResults=$fetch_max")
+    r_changelog=$(_fetch_changelog_window "$issue" "$max_changelog")
 
     if $JSON; then
       jq -n --argjson issue "$r_issue" --argjson changelog "$r_changelog" \

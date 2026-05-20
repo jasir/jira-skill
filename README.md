@@ -93,7 +93,7 @@ Use `[[KEY]]` inside `jira comment` text for clickable JIRA issue cards:
 jira comment PROJ-123 "Also covers [[KNW-30718]]"
 ```
 
-`**KNW-30718**` (markdown bold) or plain `KNW-30718` will not create an inline issue card in JIRA UI.
+`**KNW-30718**` (markdown-style text) or plain `KNW-30718` will not create an inline issue card in JIRA UI.
 
 ## History and API access
 
