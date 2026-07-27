@@ -1,0 +1,15 @@
+h2. Scope
+
+# Ship the banner centred, without the empty-results notice
+# Change the tooltip trigger to every first add
+# -Aggregate inactive filters into one trailing pill-
+# -Open the filter drawer expanded (non applied)-
+
+Design: [https://figma.example/file/abc|https://figma.example/file/abc|smart-link]
+
+h3. Snippet
+
+{code:php}
+$html = strtr($html, ['%K3W_TITLE%' => $title]);
+// keep -this- literal and *these* asterisks
+{code}

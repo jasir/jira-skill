@@ -1,0 +1,10 @@
+{color:#97A0AF}*[ OPEN POINT ]*{color} Will PL differ from CZ?
+{color:#FF991F}*[ PARTNER ]*{color} Shared vouchers with the partner?
+
+{quote}
+Confirmed by the business owner.
+Second line.
+{quote}
+
+Nothing was -removed- here yet, and split-tunnel stays.
+Contact: [the owner|mailto:owner@example.com]

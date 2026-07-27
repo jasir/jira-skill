@@ -1,0 +1,20 @@
+h2. Fees
+
+# Packaging
+# Convenience
+## Feature flag per destination
+## B2B x B2C
+
+||Eligibility||Packaging fee||
+|None|Not displayed|
+|P/P (B2B)|{{cartPrices.packagingFee}} > 0|
+
+!checkout-mock.png|width=686,alt="checkout-mock.png"!
+
+{panel:title=Watch out}
+The +convenience+ fee is *not* shown for B2B.
+{panel}
+
+----
+
+bq. Decided on 2026-07-20.

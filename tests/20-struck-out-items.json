@@ -1,0 +1,20 @@
+{
+  "name": "struck-out-items",
+  "description": "The reporter struck out two of four acceptance criteria. The agent must read `~~text~~` as 'removed from scope' and exclude those items when asked what to implement. This is the regression guard for the bug that motivated the v2/Markdown rewrite: the old ADF renderer dropped strike marks, so cancelled work looked like active work.",
+  "prompt": "Přečti si KNW-32671 a vypiš mi, co se v tom ticketu má reálně naimplementovat.",
+  "skills_to_load": ["jira-skill"],
+  "expected_behaviors": [
+    "uses `jira show KNW-32671` or `jira describe KNW-32671`",
+    "lists only the two active items (Dr.Max banner centering, tooltip trigger change)",
+    "explicitly notes that the aggregated-inactive-filters item and the filter-drawer item are struck out / out of scope",
+    "preserves the reporter's numbering when referring to items"
+  ],
+  "anti_patterns": [
+    "lists all four items as work to be done",
+    "treats the struck-out drawer or aggregated-filters items as requirements",
+    "silently omits the struck-out items without saying they were cancelled",
+    "uses raw curl or `jira --json` and hand-parses ADF"
+  ],
+  "models": ["sonnet", "opus", "haiku"],
+  "min_pass_model": "sonnet"
+}
