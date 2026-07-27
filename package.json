@@ -1,0 +1,11 @@
+{
+  "name": "jira-skill",
+  "version": "2.0.0",
+  "description": "JIRA REST wrapper packaged as a Claude Code / Cursor skill",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test tests/unit",
+    "test:live": "JIRA_LIVE_TEST=1 bun test tests/live.test.ts"
+  }
+}
