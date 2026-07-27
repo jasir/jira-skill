@@ -177,6 +177,27 @@ describe("run", () => {
     expect(out.join("\n")).toBe("Comment added (id: 42) to KNW-1");
   });
 
+  test("comment expands [[KEY]] into an inlineCard using the instance base URL", async () => {
+    let sent = "";
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      sent = String(init.body);
+      return new Response(JSON.stringify({ id: "42" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new JiraClient(CREDS, fetchImpl);
+    const { deps } = collect();
+
+    await run(parsed(["comment", "KNW-1", "see [[KNW-2]] too"]), { client, ...deps });
+
+    expect(JSON.parse(sent).body.content[0].content).toEqual([
+      { type: "text", text: "see " },
+      {
+        type: "inlineCard",
+        attrs: { url: "https://example.atlassian.net/browse/KNW-2", localId: "link-KNW-2-0" },
+      },
+      { type: "text", text: " too" },
+    ]);
+  });
+
   test("transition without a target lists the available names", async () => {
     const client = clientFor([
       { match: /transitions/, body: { transitions: [{ id: "1", name: "Done" }] } },

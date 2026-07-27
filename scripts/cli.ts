@@ -5,6 +5,7 @@
  * `parseArgs` is pure, `run` takes an injected client.
  */
 
+import { buildCommentDocument } from "./adf";
 import { JiraClient, JiraError } from "./client";
 import { formatComments, formatIssueHeader, formatSearchList } from "./format";
 import { wikiToMarkdown } from "./wiki2md";
@@ -28,7 +29,7 @@ Commands:
   describe <ISSUE-KEY>              Description as Markdown
   comments <ISSUE-KEY>              All comments (author, date, text)
   show <ISSUE-KEY>                  Header + description + comments (ONE API call)
-  comment <ISSUE-KEY> <text>        Add comment to issue
+  comment <ISSUE-KEY> <text>        Add comment ([[PROJ-1]] becomes a clickable issue card)
   search <JQL> [maxResults]         Search issues with JQL (default: 25)
   jql <JQL> [maxResults]            Alias for search
   transition <ISSUE-KEY> [status]   Transition issue status (no status = list available)
@@ -44,6 +45,7 @@ Examples:
   jira get PROJ-123
   jira describe PROJ-123
   jira comment PROJ-123 "Fixed in build 1.2.3"
+  jira comment PROJ-123 "Also covers [[PROJ-456]] — see there"
   jira search "project=PROJ AND status=Open AND assignee=currentUser()"
   jira transition PROJ-123 "In Progress"
   jira --json get PROJ-123 -f reporter,labels
@@ -188,13 +190,7 @@ export async function run(command: Command, deps: Deps): Promise<number> {
       case "comment": {
         const created = await client.request(3, `/issue/${command.key}/comment`, {
           method: "POST",
-          body: {
-            body: {
-              type: "doc",
-              version: 1,
-              content: [{ type: "paragraph", content: [{ type: "text", text: command.text }] }],
-            },
-          },
+          body: { body: buildCommentDocument(command.text, client.baseUrl) },
         });
         out(`Comment added (id: ${created.id}) to ${command.key}`);
         return 0;

@@ -54,6 +54,13 @@ function inline(s: string): string {
   );
   s = s.replace(/\[((?:https?|ftp|mailto):[^\]\s|]+)\]/gi, "$1");
 
+  // A bare link to another ticket reads as noise; name it. This is the read-side
+  // counterpart of the `[[KEY]]` markers in adf.ts.
+  s = s.replace(
+    /(^|\s)(https?:\/\/[^\s)\]]*\/browse\/([A-Z][A-Z0-9]+-\d+))(?=[\s.,;:!?]|$)/g,
+    "$1[$3]($2)",
+  );
+
   // !image.png|width=686,alt="…"! — v2 carries the filename only, no fetchable id
   s = s.replace(/!([^!\s][^!\n]*)!/g, (_m, body: string) => `[image: ${body.split("|")[0].trim()}]`);
 

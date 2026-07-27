@@ -86,6 +86,24 @@ describe("links and images", () => {
     expect(wikiToMarkdown("[https://example.com/x]")).toBe("https://example.com/x");
   });
 
+  test("names a link to another ticket", () => {
+    expect(
+      wikiToMarkdown("caused by [https://x.atlassian.net/browse/KNW-30718|https://x.atlassian.net/browse/KNW-30718|smart-link]"),
+    ).toBe("caused by [KNW-30718](https://x.atlassian.net/browse/KNW-30718)");
+  });
+
+  test("does not re-wrap a browse URL that is already a Markdown link", () => {
+    expect(wikiToMarkdown("see [the ticket|https://x.atlassian.net/browse/KNW-1]")).toBe(
+      "see [the ticket](https://x.atlassian.net/browse/KNW-1)",
+    );
+  });
+
+  test("leaves a non-issue URL alone", () => {
+    expect(wikiToMarkdown("docs at https://x.atlassian.net/wiki/spaces/AB")).toBe(
+      "docs at https://x.atlassian.net/wiki/spaces/AB",
+    );
+  });
+
   test("names an attachment instead of dropping it", () => {
     expect(wikiToMarkdown('!screen-1.png|width=686,alt="screen-1.png"!')).toBe(
       "[image: screen-1.png]",

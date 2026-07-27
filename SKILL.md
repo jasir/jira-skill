@@ -77,6 +77,18 @@ tree stays reachable when you need it.
 | monospace | backticks |
 | table | Markdown table |
 
+## Linking other tickets in a comment
+
+Write `[[PROJ-456]]` and the wrapper posts an ADF `inlineCard` — the same clickable issue card you
+get by pasting a browse URL in the JIRA UI. A bare `PROJ-456` or `**PROJ-456**` stays dead text, so
+use the markers when the reference matters.
+
+```bash
+jira comment PROJ-123 "Duplicate of [[PROJ-456]], closing"
+```
+
+Reading back, a link to another ticket renders as `[PROJ-456](https://…/browse/PROJ-456)`.
+
 **Known gap:** checkbox items lose their TODO/DONE state — the v2 API does not carry it. If a
 ticket's checkbox states matter, read `jira --json show PROJ-123` and look at
 `taskItem.attrs.state` in the ADF.
@@ -92,6 +104,9 @@ jira get PROJ-123
 
 # Add multiline comment (use $'...' for special chars)
 jira comment PROJ-123 "Fixed in build 1.2.3 — see release notes"
+
+# Link another ticket: [[KEY]] becomes a clickable issue card in the JIRA UI
+jira comment PROJ-123 "Root cause is the same as [[PROJ-456]]"
 
 # Find your open issues
 jira search "project=PROJ AND status='In Progress' AND assignee=currentUser()"

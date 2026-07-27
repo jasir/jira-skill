@@ -28,6 +28,7 @@ converts that to Markdown.
 | status lozenge | `**[ OPEN POINT ]**` |
 | attachment | `[image: filename.png]` |
 | smart link | the URL |
+| link to another ticket | `[PROJ-456](…/browse/PROJ-456)` |
 | table | Markdown table |
 
 Known gap: checkbox items lose their TODO/DONE state — the v2 API does not carry it. Use
@@ -43,7 +44,8 @@ Known gap: checkbox items lose their TODO/DONE state — the v2 API does not car
 │   ├── jira.ts           # entry point
 │   ├── cli.ts            # argument parsing + command routing
 │   ├── client.ts         # REST client, injectable fetch
-│   ├── wiki2md.ts        # wiki markup → Markdown (pure)
+│   ├── wiki2md.ts        # wiki markup → Markdown (pure, read side)
+│   ├── adf.ts            # Markdown-ish text → ADF (pure, write side)
 │   └── format.ts         # issue/comment/search rendering
 ├── tests/
 │   ├── unit/             # offline unit + fixture tests (bun test)
@@ -109,6 +111,7 @@ It's just a script — call `jira help` for usage.
 | Comments (author, date, text)          | `jira comments PROJ-123`                                    | 1         |
 | **Header + description + comments**    | **`jira show PROJ-123`**                                    | **1**     |
 | Add comment                            | `jira comment PROJ-123 "text"`                              | 1         |
+| Comment linking another ticket          | `jira comment PROJ-123 "see [[PROJ-456]]"`                  | 1         |
 | Search JQL                             | `jira search "project=PROJ AND status=Open"`                | 1         |
 | List transitions                       | `jira transition PROJ-123`                                  | 1         |
 | Apply transition                       | `jira transition PROJ-123 "In Progress"`                    | 2         |
