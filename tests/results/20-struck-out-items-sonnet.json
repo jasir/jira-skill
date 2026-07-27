@@ -1,0 +1,16 @@
+{
+  "test": "20-struck-out-items",
+  "model": "sonnet-5",
+  "timestamp": "2026-07-27T13:35:37Z",
+  "score": "4/4",
+  "api_calls": 1,
+  "passed": [
+    "uses `jira show KNW-32671`",
+    "lists only the two active items (Dr.Max banner centering, tooltip trigger change)",
+    "explicitly notes the aggregated-filters and drawer items are struck out / out of scope",
+    "preserves the reporter's numbering (active 1–2, names 'body 3 a 4' as struck)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Leads with the count — 'v popisku jsou 4 body, ale body 3 a 4 jsou přeškrtnuté' — which is the clearest possible signal that scope changed. Slight over-reading on item 2: says the tooltip fires on every first add 'v rámci session', which the ticket does not state."
+}

@@ -1,0 +1,16 @@
+{
+  "test": "20-struck-out-items",
+  "model": "opus-5",
+  "timestamp": "2026-07-27T13:35:37Z",
+  "score": "4/4",
+  "api_calls": 1,
+  "passed": [
+    "uses `jira show KNW-32671`",
+    "lists only the two active items (Dr.Max banner centering, tooltip trigger change)",
+    "explicitly notes the aggregated-filters and drawer items are struck out / out of scope",
+    "preserves the reporter's numbering (active 1–2, struck 3–4)"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Strongest framing of the three: adds an unprompted warning that the scope shrank from four items to two, so a reader who remembered the ticket as a large filter refactor is corrected. Also flags a genuine ambiguity (whether the empty-results notice is suppressed only when the banner shows) and proposes checking Figma or asking the reporter rather than guessing."
+}

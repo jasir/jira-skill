@@ -1,0 +1,16 @@
+{
+  "test": "20-struck-out-items",
+  "model": "haiku-4.5",
+  "timestamp": "2026-07-27T13:35:37Z",
+  "score": "4/4",
+  "api_calls": 1,
+  "passed": [
+    "uses `jira show KNW-32671`",
+    "lists only the two active items (Dr.Max banner centering, tooltip trigger change)",
+    "explicitly notes the aggregated-filters and drawer items are struck out / out of scope",
+    "refers to the struck items as 'body 3 a 4'"
+  ],
+  "failed": [],
+  "anti_patterns_triggered": [],
+  "notes": "Cleanest pass for Haiku in this suite so far — no over-validation, no extra calls, and it repeats the point ('body 3 a 4 byly vyřazeny ze scope') rather than leaving it implicit. Renders the struck items as bullets rather than keeping positions 3 and 4, but names them explicitly, so the numbering is not lost."
+}

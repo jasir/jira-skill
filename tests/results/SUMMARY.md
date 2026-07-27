@@ -1,7 +1,7 @@
 # Test Results — Model Compatibility Matrix
 
-Run date: 2026-05-11
-Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
+Run date: 2026-05-11 (tests 01–09), 2026-07-27 (test 20)
+Skill version: v3 (API v2 + Markdown rendering, Bun rewrite)
 
 ## Score matrix (score / API calls)
 
@@ -15,6 +15,12 @@ Skill version: v2 (post-`show` refactor + "empty is valid" amendment)
 | 06 v3 | search-mine (script emits explicit empty) | ✅ 4/4 (1) | ⚠️ 4/4 (2) UX win | n/a (Haiku dropped) |
 | 07 | transition (dry-run) | ✅ 3/3 (2) | ✅ 3/3 (1) | ✅ 3/3 (2) |
 | 09 | narrow-payload (`-f` flag) | ✅ 3/3 (1) | ✅ 3/3 (1) | n/a |
+
+Test 20 ran against the current model generation, so it gets its own row:
+
+| # | Test | Opus 5 | Sonnet 5 | Haiku 4.5 |
+|---|------|--------|----------|-----------|
+| 20 | struck-out-items | ✅ 4/4 (1) | ✅ 4/4 (1) | ✅ 4/4 (1) |
 
 ## REFACTOR iteration — outcome
 
@@ -70,6 +76,34 @@ Instead of writing yet another rule in SKILL.md, v3 fixed the root cause: empty 
 
 Test 09 (new): both Opus and Sonnet picked the pattern up immediately, producing identical commands. The skill's "Raw JSON, narrowed payload" Quick Reference row is doing its job.
 
+## v5 iteration — struck-out scope becomes visible (test 20)
+
+The old ADF renderer dropped `strike` marks, so a requirement the reporter had cancelled read back
+as an active requirement. Reading text through API v2 and rendering `~~text~~` fixes the input;
+SKILL.md gained an explicit rule that struck text means "removed from scope, say so".
+
+Test 20 checks the behaviour that actually matters — not whether `~~` is emitted (unit tests cover
+that) but whether an agent acts on it. KNW-32671 has four acceptance criteria; the reporter struck
+items 3 and 4, which are also the two largest.
+
+**All three models: 4/4, one API call, zero anti-patterns.** None listed the struck items as work,
+and all three said out loud that they were cancelled rather than silently dropping them.
+
+| Model | Framing of the scope change |
+|-------|------------------------------|
+| Opus 5 | Volunteers that scope shrank from four items to two, and flags a real ambiguity in item 1 to check with the reporter |
+| Sonnet 5 | Leads with the arithmetic: "v popisku jsou 4 body, ale body 3 a 4 jsou přeškrtnuté" |
+| Haiku 4.5 | Repeats the point in a dedicated "Smazáno ze scope" section — its cleanest pass in this suite |
+
+Worth noting the anti-pattern that did *not* fire: "silently omits the struck-out items without
+saying they were cancelled". Merely excluding cancelled work would still leave a user who
+remembers the original scope wondering where half the ticket went.
+
 ## Open follow-ups
 
 - **Sonnet v3 trade-off:** 1 extra call in exchange for better UX (shows alternatives instead of asking). Token-strict mode would tighten the SKILL.md rule to "ask first, don't enumerate". Helpful-mode accepts current behavior. Decision deferred to user.
+- **Tests 01–09 predate the v2/Markdown rewrite** and were run against the previous model
+  generation. Their commands are unchanged, but the rendered output they scored is not. Re-run
+  before treating that part of the matrix as current.
+- **Sonnet 5 on test 20** added a qualifier the ticket does not contain ("v rámci session"). Not an
+  anti-pattern, but worth watching if summarisation accuracy gets its own scenario.
