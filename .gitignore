@@ -3,3 +3,7 @@
 *~
 .idea/
 .vscode/
+
+# created by `bunx`/`bun install`, the wrapper itself has no dependencies
+node_modules/
+bun.lock

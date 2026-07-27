@@ -112,6 +112,10 @@ It's just a script — call `jira help` for usage.
 | **Header + description + comments**    | **`jira show PROJ-123`**                                    | **1**     |
 | Add comment                            | `jira comment PROJ-123 "text"`                              | 1         |
 | Comment linking another ticket          | `jira comment PROJ-123 "see [[PROJ-456]]"`                  | 1         |
+| Delete comment                         | `jira comment-delete PROJ-123 881685`                       | 1         |
+| Field-change history                   | `jira changelog PROJ-123 [max] [--skip-system]`             | 1         |
+| **Header + changelog + comments**      | **`jira history PROJ-123`**                                 | **1**     |
+| Raw REST call                          | `jira api GET issue/PROJ-123/watchers`                      | 1         |
 | Search JQL                             | `jira search "project=PROJ AND status=Open"`                | 1         |
 | List transitions                       | `jira transition PROJ-123`                                  | 1         |
 | Apply transition                       | `jira transition PROJ-123 "In Progress"`                    | 2         |

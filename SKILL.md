@@ -1,6 +1,6 @@
 ---
 name: using-jira
-description: You MUST use when querying JIRA issues, reading descriptions or comments, adding comments, searching with JQL, or transitioning issue status - wraps the JIRA REST API via a Bun script at ~/.local/bin/jira, rendering ticket text as Markdown (struck-out text means removed from scope); requires one-time credentials setup at ~/.config/jira/credentials
+description: You MUST use when querying JIRA issues, reading descriptions or comments, adding or deleting comments, searching with JQL, transitioning issue status, or inspecting an issue's change history - wraps the JIRA REST API via a Bun script at ~/.local/bin/jira, rendering ticket text as Markdown (struck-out text means removed from scope) and offering `jira api` so credentials are never hand-written into curl; requires one-time credentials setup at ~/.config/jira/credentials
 ---
 
 # Using JIRA
@@ -53,6 +53,10 @@ ln -sf "$(pwd)/scripts/jira" ~/.local/bin/jira
 | Comments (formatted) | `jira comments PROJ-123` | 1 |
 | **Header + description + comments** | **`jira show PROJ-123`** | **1** |
 | Add comment | `jira comment PROJ-123 "text"` | 1 |
+| Delete comment | `jira comment-delete PROJ-123 881685` | 1 |
+| Field-change history | `jira changelog PROJ-123` | 1 |
+| **Header + changelog + comments** | **`jira history PROJ-123`** | **1** |
+| Anything else in the REST API | `jira api GET issue/PROJ-123/watchers` | 1 |
 | Search JQL | `jira search "project=PROJ AND status=Open"` | 1 |
 | List transitions | `jira transition PROJ-123` | 1 |
 | Apply transition | `jira transition PROJ-123 "In Progress"` | 2 |
@@ -142,6 +146,36 @@ jira transition PROJ-123 "To Done"
 | `Error: bun not found` | `curl -fsSL https://bun.sh/install \| bash` |
 | Comment with apostrophes breaks | Use `$'text with \'quotes\''` or pass via variable |
 | Guessing transition name | Run `jira transition PROJ-123` (no arg) to list available names |
+| Raw `curl` with credentials for an endpoint that has no command | Use `jira api <METHOD> <path>` |
+| `get` + `describe` + `comments` + a changelog call to reconstruct history | Use `jira history` — one call |
+| Editing a comment | Not supported by the API. `jira comment-delete` then post again. |
+
+## History and raw API access
+
+`jira history` is to "what happened to this ticket" what `jira show` is to "what is this ticket
+about" — header, field changes and comments in **one** call.
+
+```bash
+jira history PROJ-123                    # last 10 changes + last 5 comments
+jira history PROJ-123 20 10 --skip-system
+jira changelog PROJ-123 --skip-system    # changes only
+```
+
+`--skip-system` hides JIRA's own bookkeeping (`Rank`, `IssueParentAssociation`, `WorklogId`,
+`Attachment`). Long values are truncated with their real length shown — a rewritten description
+would otherwise dump thousands of characters of raw markup into your context. Use
+`jira --json changelog` for the untruncated values.
+
+**Comment edit history is not available** through the API. To correct a comment, delete it and post
+again.
+
+**Never hand-write `curl` with credentials.** For endpoints without a dedicated command:
+
+```bash
+jira api GET issue/PROJ-123/watchers
+jira api GET search/jql -q "jql=project=PROJ" -q maxResults=5
+jira api POST issue/PROJ-123/watchers -d '"5b10a2844c20165700ede21g"'
+```
 
 ## Troubleshooting
 

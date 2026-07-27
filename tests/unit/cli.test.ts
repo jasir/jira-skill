@@ -66,6 +66,56 @@ describe("parseArgs", () => {
   test("an unknown command points at help", () => {
     expect(parseError(["frobnicate"])).toMatch(/Unknown command: frobnicate/);
   });
+
+  test("comment-delete needs both a key and an id", () => {
+    expect(parsed(["comment-delete", "KNW-1", "881685"])).toEqual({
+      name: "comment-delete",
+      key: "KNW-1",
+      commentId: "881685",
+    });
+    expect(parseError(["comment-delete", "KNW-1"])).toBe("Missing comment id");
+  });
+
+  test("--skip-system is positional-independent", () => {
+    expect(parsed(["changelog", "KNW-1", "--skip-system", "5"])).toMatchObject({
+      max: 5,
+      skipSystem: true,
+    });
+    expect(parsed(["changelog", "KNW-1", "5", "--skip-system"])).toMatchObject({
+      max: 5,
+      skipSystem: true,
+    });
+  });
+
+  test("history defaults to 10 changelog entries and 5 comments", () => {
+    expect(parsed(["history", "KNW-1"])).toMatchObject({ maxChangelog: 10, maxComments: 5 });
+    expect(parsed(["history", "KNW-1", "3", "2"])).toMatchObject({
+      maxChangelog: 3,
+      maxComments: 2,
+    });
+  });
+
+  test("api parses method, path and repeated -q pairs", () => {
+    expect(parsed(["api", "get", "issue/KNW-1/watchers", "-q", "expand=x", "-q", "a=b"])).toEqual({
+      name: "api",
+      method: "GET",
+      path: "/issue/KNW-1/watchers",
+      query: { expand: "x", a: "b" },
+      body: undefined,
+    });
+  });
+
+  test("api keeps a value containing '=' intact", () => {
+    expect(parsed(["api", "GET", "search/jql", "-q", "jql=project=KNW"])).toMatchObject({
+      query: { jql: "project=KNW" },
+    });
+  });
+
+  test("api rejects malformed query and data instead of sending them", () => {
+    expect(parseError(["api", "GET", "x", "-q", "novalue"])).toMatch(/must be key=value/);
+    expect(parseError(["api", "POST", "x", "-d", "{nope"])).toMatch(/-d expects JSON/);
+    expect(parseError(["api", "GET", "x", "--bogus", "1"])).toMatch(/Unknown flag for api/);
+  });
 });
 
 interface Route {
@@ -225,6 +275,82 @@ describe("run", () => {
 
     expect(await run(parsed(["show", "KNW-1"]), { client, ...deps })).toBe(1);
     expect(err.join("\n")).toMatch(/Error: unauthorized \(401\)/);
+  });
+
+  test("comment-delete issues a DELETE", async () => {
+    let method = "";
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      method = String(init.method);
+      return new Response("", { status: 204 });
+    }) as unknown as typeof fetch;
+    const { out, deps } = collect();
+
+    await run(parsed(["comment-delete", "KNW-1", "42"]), {
+      client: new JiraClient(CREDS, fetchImpl),
+      ...deps,
+    });
+
+    expect(method).toBe("DELETE");
+    expect(out.join("\n")).toBe("Comment deleted (id: 42) from KNW-1");
+  });
+
+  test("history gets header, changelog and comments in a single call", async () => {
+    const calls: string[] = [];
+    const client = clientFor(
+      [
+        {
+          match: /issue\/KNW-1/,
+          body: {
+            key: "KNW-1",
+            fields: {
+              summary: "S",
+              status: { name: "Done" },
+              comment: { comments: [{ id: "7", author: { displayName: "Ada" }, body: "hi" }] },
+            },
+            changelog: {
+              histories: [
+                {
+                  created: "2026-07-20T09:15:00.000+0200",
+                  author: { displayName: "Ada" },
+                  items: [{ field: "status", fromString: "To Do", toString: "Done" }],
+                },
+              ],
+            },
+          },
+        },
+      ],
+      calls,
+    );
+    const { out, deps } = collect();
+
+    await run(parsed(["history", "KNW-1"]), { client, ...deps });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("expand=changelog");
+    const text = out.join("\n");
+    expect(text).toContain("── Changelog ──");
+    expect(text).toContain("status: To Do → Done");
+    expect(text).toContain("── Comments ──");
+    expect(text).toContain("(id: 7)");
+  });
+
+  test("api forwards method, query and body verbatim", async () => {
+    const calls: Call[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const { out, deps } = collect();
+
+    await run(parsed(["api", "post", "issue/KNW-1/watchers", "-d", '"acc-1"']), {
+      client: new JiraClient(CREDS, fetchImpl),
+      ...deps,
+    });
+
+    expect(calls[0].url).toContain("/rest/api/3/issue/KNW-1/watchers");
+    expect(calls[0].init.method).toBe("POST");
+    expect(calls[0].init.body).toBe('"acc-1"');
+    expect(out.join("\n")).toBe('{\n  "ok": true\n}');
   });
 
   test("help does not need a client", async () => {
